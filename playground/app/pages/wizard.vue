@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, watch } from 'vue'
 import { string } from 'yup'
 
 /**
@@ -47,10 +47,19 @@ addSchemas(steps.fields, {
   city: string().required('City is required'),
 })
 
-const { register, values } = toForm(steps.fields)
+const form = toForm(steps.fields)
+const { register, values } = form
+
+/**
+ * The attempt lives here, not in the form: what was tried, what came back, and
+ * what is worth showing about it. The messages it keeps land on the fields, so
+ * `register()` is still the only register — the extender in
+ * `plugins/form-bindings.ts` is what turns one into this project's `errorMessage`.
+ */
+const session = useFormSession({ ...form, steps })
 
 /** Destructured for the same reason the engine is: the template unwraps refs. */
-const { visibleNames, current, activeKeys, isFirst, isLast, back, next } = steps
+const { visibleNames, current, activeKeys, isFirst, isLast, back } = steps
 
 /**
  * Moving is the wizard's; what moving CAUSES is the page's. Scroll, the URL,
@@ -73,15 +82,8 @@ onMounted(() => {
   if (steps.isStepName(fromHash)) void steps.resume(fromHash)
 })
 
-/**
- * `next()` validates the active step and stays put if it fails. What to do with
- * the messages is the page's business — a session composable will own this.
- */
-const errors = ref<string[]>([])
-const advance = async () => {
-  const result = await next()
-  errors.value = Object.values(result.errors).flat()
-}
+/** The session validates the step, remembers what it refused, and moves if it passed. */
+const advance = () => session.next()
 </script>
 
 <template>
@@ -115,6 +117,7 @@ const advance = async () => {
         <SimpleInput
           v-else
           v-bind="register(key)"
+          @blur="session.touch(key)"
         />
       </template>
 
@@ -129,24 +132,13 @@ const advance = async () => {
         </button>
         <button
           type="submit"
+          :disabled="session.isSubmitting.value"
           style="padding:.5rem 1rem"
         >
           {{ isLast ? 'validate' : 'next' }}
         </button>
       </div>
     </form>
-
-    <ul
-      v-if="errors.length"
-      style="color:#b91c1c; font-size:.85rem"
-    >
-      <li
-        v-for="error in errors"
-        :key="error"
-      >
-        {{ error }}
-      </li>
-    </ul>
 
     <pre style="background:#f4f4f5; padding:1rem; font-size:.75rem; overflow:auto">{{ values }}</pre>
   </main>

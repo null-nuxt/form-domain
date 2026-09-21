@@ -78,6 +78,20 @@ export interface FieldObj<TValue, TValues = Record<string, unknown>, TDeclared =
   groupCanShow?: () => boolean
   /** Written by `addSchema`. A getter when the validator depends on state. */
   schema?: unknown
+  /**
+   * The message worth showing for this field right now, or nothing.
+   *
+   * Written by a session and by nothing else: WHEN a message is worth showing —
+   * after a submit was attempted, until the value it spoke about changes — is
+   * the session's policy, and the field is where everyone can read the answer.
+   * The engine never writes here, so `validate()` stays a question you ask
+   * rather than a state you keep.
+   *
+   * Nothing reaches the component on its own. A project maps it onto whatever
+   * prop its input declares, with `extendFormBindings` — the same way it maps
+   * `meta.mask`. An input that declares none gets nothing.
+   */
+  error?: string
   /** The option matching the current value — or the options, for a multi-choice field. */
   readonly selected: SelectedOf<TValue>
   /** Marks the object as a field so the engine can tell it from anything else. */
@@ -98,6 +112,7 @@ interface ReactiveSource<TValue> {
   rule?: FieldRule<TValue, Record<string, unknown>>
   groupCanShow?: () => boolean
   schema?: unknown
+  error?: string
   readonly selected: SelectedOf<TValue>
   readonly __isFormField: true
 }

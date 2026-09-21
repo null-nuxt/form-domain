@@ -230,11 +230,16 @@ this is a method: composing outside a `computed` freezes the schema at its first
 value, so a field a rule hides later stays required — a bug that only shows up
 on the branch that hides something.
 
-### Submitting is not this module's job
+### Submitting is not the form's job
 
-There is deliberately no `onSubmit` or `onSchemaError`. The module provides
-schema and state; running validation and submission belongs to your form
-library — vee-validate, FormKit, or your own wrapper.
+There is no `onSubmit` on the form, and there won't be. What was tried, what
+came back and what is worth showing about it cannot be derived from the fields,
+and keeping it in the engine would turn `validate()` from a question you ask
+into a state you maintain.
+
+It lives one layer up, in [`useFormSession`](#the-attempt-useformsession), which
+is optional. A project already using vee-validate or FormKit ignores it and
+keeps `shape` and `validate`.
 
 ## `register()` builds the input props
 
@@ -428,6 +433,77 @@ what a rule is currently letting through. A backend that wants the key always
 present spreads the first; one that must not receive the opposite group's
 document spreads the second. Both reach the context because neither answer is
 right for everyone.
+
+## The attempt: `useFormSession`
+
+The form answers what is true of the fields right now. What was *tried* — the
+submit that failed, the message the server sent back, whether a field has been
+visited — is not among those answers, so it lives one layer up, and using it is
+a choice:
+
+```ts
+const form = useFormDomain('signup')
+const session = useFormSession(form)
+
+const send = session.submit(async (payload) => {
+  const { error } = await api.post('/signup', payload)
+  if (error) session.setErrors({ email: 'already taken' })
+})
+```
+
+`submit` validates first and calls the handler only if it passed, hands it the
+`payload` — the domain's projection, or `values` for a plain form — and ignores
+a second call while the first is in flight, because a double click is one click.
+
+### Who owns the error
+
+The form is the truth; the session is the memory. `validate()` can be asked at
+any moment and keeps nothing, and the session stores the last answer plus the
+policy for when it has earned the right to be shown:
+
+- **Nothing shows while the form is only being filled.** A message appears once
+  sending was attempted, or once that field was visited — `touch(key)`, usually
+  on blur.
+- **After that, the field answers again on every change**, so someone correcting
+  a mistake sees it go instead of waiting for the next submit.
+- **A server's message lives until the value it spoke about changes.** Nothing
+  local can recompute "already taken": surviving everything leaves the field red
+  after the fix, and dying on the next keystroke means nobody reads it.
+- **A hidden field has no message.** What isn't validated cannot be wrong, so a
+  skipped step takes its messages with it.
+
+If the two ever disagree, the form is right and the session has not re-run.
+
+### One `register()`, not two
+
+The session writes the message onto the field, as `field.error`. It does not
+wrap `register()`, and there is no `session.register`: one door means there is
+never a question of which one to use.
+
+Nothing reaches a component on its own. The project maps it with
+`extendFormBindings` — the same mechanism as `meta.mask` — under whatever name
+its own input declares:
+
+```ts
+extendFormBindings(field => field.error ? { errorMessage: field.error } : undefined)
+```
+
+An input that declares nothing receives nothing, so a plain `<input>` collects
+no stray attribute. Blur is wired the same way, in the open, where the input is:
+
+```vue
+<MyInput v-bind="register(key)" @blur="session.touch(key)" />
+```
+
+### With a wizard
+
+A form that exposes `steps` gives its session a `next()`: it validates the
+active step, remembers what was refused, advances if it passed, and answers
+whether it moved. A wizard built inside a component hands both over together:
+
+```ts
+const session = useFormSession({ ...form, steps })
+```
 
 ## Catalog
 
@@ -697,6 +773,7 @@ rest, so the wizard would walk in an order nobody wrote.
 | two fragments declaring the same field | **compile time** |
 | two steps declaring the same field | **compile time** |
 | `addStepRules` naming a step that doesn't exist | **compile time** |
+| `setErrors` naming a field that doesn't exist | **compile time** |
 | `goTo()` naming a step that doesn't exist | **compile time** |
 | `deriveOptions` on a field that declared no options | **compile time** |
 | reading `options`/`selected` on a field that isn't a choice | **compile time** |
@@ -714,6 +791,7 @@ mergeFields([a, b])               // declaration fragments into one
 defineFields({ name: { ... } })   // a declaration in its own file, checked there
 refSteps({ who: { ... } })        // one tree out of the steps, plus where in it we are
 addStepRules(steps, { who: {...} })  // when a step applies at all
+useFormSession(form)              // the attempt: submit, messages, touched
 
 addRule(field, rule)           // behaviour for one field
 addRules(fields, { ... })      // for several, keyed

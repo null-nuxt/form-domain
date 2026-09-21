@@ -4,6 +4,7 @@ export { addRule, addRules, addSchema, addSchemas } from './fields/register'
 export { defineFormDomain, toForm } from './domain/define'
 export { refSteps } from './steps/create'
 export { addStepRules } from './steps/register'
+export { useFormSession } from './session/create'
 export { extendFormBindings } from './engine/bindings'
 
 export type { FormBindingsExtender } from './engine/bindings'
@@ -22,6 +23,8 @@ export type { SchemaSource } from './fields/register'
 export type { StepsController, StepsInput } from './steps/create'
 
 export type { StepRule } from './steps/register'
+
+export type { FormSession } from './session/create'
 
 export type { FieldValidationResult, ValidationResult } from './standard'
 

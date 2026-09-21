@@ -13,6 +13,21 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   full run reads, so a subset cannot conclude something different from the
   submit. `validateField` is now that call with one key.
 
+- **`useFormSession(form)`**, for what the form has no business keeping: the
+  submit that failed, the message a server sent back, whether a field was
+  visited. It validates before calling the handler, hands it the payload, and
+  ignores a second call while the first is in flight.
+
+  The form stays the truth and the session the memory. Nothing shows while a
+  form is only being filled; after an attempt — or a `touch(key)` — the field
+  answers again on every change; a server's message lives until the value it
+  spoke about changes; and a hidden field has no message at all. With a wizard
+  it also gains `next()`.
+
+  There is no `session.register`: the message is written onto the field, and the
+  project maps it onto its own input's prop with `extendFormBindings`, exactly
+  as it maps `meta.mask`.
+
 - **`refSteps({ who, where })`**, for a form shown in parts. The steps are keyed
   by name and every one's declaration is merged into a single tree, so a rule in
   the last step reads a value from the first and the payload stays one
