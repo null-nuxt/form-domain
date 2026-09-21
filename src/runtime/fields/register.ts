@@ -1,8 +1,8 @@
 import { markRaw } from 'vue'
-import { isStandardSchema } from './standard'
+import { isStandardSchema } from '../standard'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
-import type { FieldObj, FieldRule } from './field'
-import type { AnyFields, FieldOption, HasOptions, OnlyKnownKeys, OptionValue, ValuesOf } from './types'
+import type { FieldObj, FieldRule } from './declare'
+import type { AnyFields, FieldOption, HasOptions, OnlyKnownKeys, OptionValue, ValuesOf } from '../types'
 
 /**
  * Two rules for the same field is almost always a copy-paste, not intent —

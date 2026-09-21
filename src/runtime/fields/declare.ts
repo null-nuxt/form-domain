@@ -1,5 +1,5 @@
 import { markRaw, reactive } from 'vue'
-import type { FieldOption, OptionValue, Prettify, SelectedOf } from './types'
+import type { FieldOption, OptionValue, Prettify, SelectedOf } from '../types'
 
 /**
  * What a field is declared with. Structure only — anything that depends on the

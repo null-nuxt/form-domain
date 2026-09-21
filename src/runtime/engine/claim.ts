@@ -1,5 +1,5 @@
-import { isField } from './field'
-import type { AnyFields } from './types'
+import { isField } from '../fields/declare'
+import type { AnyFields } from '../types'
 
 /**
  * Fields are reactive state. Declared at module scope they are created once per

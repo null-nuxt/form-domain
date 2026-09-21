@@ -630,6 +630,24 @@ pnpm test
 pnpm build
 ```
 
+### Layout
+
+```
+src/
+  module.ts          the Nuxt module: the aliases, the auto-imports, the domain scan
+  runtime/
+    index.ts         the public surface, behind `#forms`
+    types.ts         the shared vocabulary
+    standard.ts      the Standard Schema adapter
+    fields/          declaring:  refField, refFields, mergeFields, addRule, addSchema
+    engine/          deriving:   values, options, validation, register(), the SSR guard
+    domain/          the domain: defineFormDomain, the per-request registry, the catalog
+```
+
+One folder per layer, and the dependency runs one way: `domain` builds on
+`engine`, `engine` builds on `fields`, and `types.ts` and `standard.ts` are the
+vocabulary all three share.
+
 The playground has `domain-guard` and `catalog-guard` pages whose type errors
 are **expected**, asserted with `@ts-expect-error`. If a guarantee regresses the
 directive goes unused and typecheck fails, instead of the breakage reaching a

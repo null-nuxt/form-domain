@@ -1,10 +1,10 @@
 import { computed, watch } from 'vue'
-import { isStandardSchema, runStandard } from './standard'
+import { isStandardSchema, runStandard } from '../standard'
 import { claimFields, releaseFields } from './claim'
 import { CONTRACT_KEYS, getBindingExtenders } from './bindings'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
-import type { FieldValidationResult, ValidationResult } from './standard'
-import type { AnyFields, FieldOption, FormEngine, OptionValue, SelectedOptions, ValuesOf } from './types'
+import type { FieldValidationResult, ValidationResult } from '../standard'
+import type { AnyFields, FieldOption, FormEngine, OptionValue, SelectedOptions, ValuesOf } from '../types'
 
 /**
  * An extender that returns a contract key has it ignored, which is its own kind

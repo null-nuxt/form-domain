@@ -1,10 +1,10 @@
 // `#forms` is the package's public entry point
-export { mergeFields, refField, refFields } from './field'
-export { addRule, addRules, addSchema, addSchemas } from './register'
-export { defineFormDomain, toForm } from './define'
-export { extendFormBindings } from './bindings'
+export { mergeFields, refField, refFields } from './fields/declare'
+export { addRule, addRules, addSchema, addSchemas } from './fields/register'
+export { defineFormDomain, toForm } from './domain/define'
+export { extendFormBindings } from './engine/bindings'
 
-export type { FormBindingsExtender } from './bindings'
+export type { FormBindingsExtender } from './engine/bindings'
 
 export type {
   BuiltFields,
@@ -13,9 +13,9 @@ export type {
   FieldRule,
   FieldsInput,
   MergedFields,
-} from './field'
+} from './fields/declare'
 
-export type { SchemaSource } from './register'
+export type { SchemaSource } from './fields/register'
 
 export type { FieldValidationResult, ValidationResult } from './standard'
 
@@ -35,4 +35,4 @@ export type {
 export type {
   FormDomain,
   FormDomainInstance,
-} from './define'
+} from './domain/define'

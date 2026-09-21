@@ -105,19 +105,19 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
 
     if (options.autoImports) {
       addImports([
-        { name: 'refField', from: resolver.resolve('./runtime/field') },
-        { name: 'refFields', from: resolver.resolve('./runtime/field') },
-        { name: 'mergeFields', from: resolver.resolve('./runtime/field') },
-        { name: 'addRule', from: resolver.resolve('./runtime/register') },
-        { name: 'addRules', from: resolver.resolve('./runtime/register') },
-        { name: 'addSchema', from: resolver.resolve('./runtime/register') },
-        { name: 'addSchemas', from: resolver.resolve('./runtime/register') },
-        { name: 'toForm', from: resolver.resolve('./runtime/define') },
-        { name: 'extendFormBindings', from: resolver.resolve('./runtime/bindings') },
-        { name: 'defineFormDomain', from: resolver.resolve('./runtime/define') },
-        { name: 'useFormDomain', from: resolver.resolve('./runtime/catalog') },
-        { name: 'useFormDomains', from: resolver.resolve('./runtime/catalog') },
-        { name: 'useFormDomainsMetadata', from: resolver.resolve('./runtime/catalog') },
+        { name: 'refField', from: resolver.resolve('./runtime/fields/declare') },
+        { name: 'refFields', from: resolver.resolve('./runtime/fields/declare') },
+        { name: 'mergeFields', from: resolver.resolve('./runtime/fields/declare') },
+        { name: 'addRule', from: resolver.resolve('./runtime/fields/register') },
+        { name: 'addRules', from: resolver.resolve('./runtime/fields/register') },
+        { name: 'addSchema', from: resolver.resolve('./runtime/fields/register') },
+        { name: 'addSchemas', from: resolver.resolve('./runtime/fields/register') },
+        { name: 'toForm', from: resolver.resolve('./runtime/domain/define') },
+        { name: 'extendFormBindings', from: resolver.resolve('./runtime/engine/bindings') },
+        { name: 'defineFormDomain', from: resolver.resolve('./runtime/domain/define') },
+        { name: 'useFormDomain', from: resolver.resolve('./runtime/domain/catalog') },
+        { name: 'useFormDomains', from: resolver.resolve('./runtime/domain/catalog') },
+        { name: 'useFormDomainsMetadata', from: resolver.resolve('./runtime/domain/catalog') },
       ])
     }
   },

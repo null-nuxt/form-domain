@@ -1,5 +1,5 @@
 import { tryUseNuxtApp } from '#imports'
-import type { FieldObj } from './field'
+import type { FieldObj } from '../fields/declare'
 
 /**
  * The keys that make `v-bind="register(key)"` a working v-model. Returning one

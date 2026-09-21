@@ -1,7 +1,7 @@
 import type { ComputedRef } from 'vue'
 import type { FieldValidationResult, ValidationResult } from './standard'
-import type { BuiltFields, FieldObj, FieldsInput } from './field'
-import type { ContractKey } from './bindings'
+import type { BuiltFields, FieldObj, FieldsInput } from './fields/declare'
+import type { ContractKey } from './engine/bindings'
 
 export interface FieldOption<TValue> {
   label: string
