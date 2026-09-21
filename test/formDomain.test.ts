@@ -501,6 +501,40 @@ describe('a hidden field and validation', () => {
   })
 })
 
+describe('validating a subset', () => {
+  /** What a wizard needs before it advances: this step, not the whole form. */
+  it('reports only the keys it was given', async () => {
+    const form = toForm(build())
+    form.set({ personType: 'PJ' })
+    await nextTick()
+
+    const result = await form.validate(['cnpj'])
+
+    expect(Object.keys(result.errors)).toEqual(['cnpj'])
+    expect(result.valid).toBe(false)
+  })
+
+  it('a key a rule is hiding is valid, the same as in the full run', async () => {
+    const form = toForm(build())
+    form.set({ personType: 'PJ' })
+    await nextTick()
+
+    expect((await form.validate(['cpf'])).valid).toBe(true)
+    expect((await form.validate()).errors.cpf).toBeUndefined()
+  })
+
+  /** The invariant: one field on its own is the subset of one. */
+  it('says the same thing validateField says', async () => {
+    const form = toForm(build())
+    form.set({ personType: 'PF' })
+    await nextTick()
+
+    const [subset, single] = await Promise.all([form.validate(['cpf']), form.validateField('cpf')])
+
+    expect(single).toEqual({ valid: subset.valid, errors: subset.errors.cpf ?? [] })
+  })
+})
+
 describe('composeSchema', () => {
   /**
    * Why it exists: composing by hand outside a `computed` freezes the schema

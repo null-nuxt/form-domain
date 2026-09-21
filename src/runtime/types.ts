@@ -202,7 +202,11 @@ export interface FormEngine<F extends AnyFields> {
    * value, so a field a rule hides later stays required.
    */
   composeSchema: <T>(combine: (shape: Record<string, never>) => T) => ComputedRef<T>
-  validate: () => Promise<ValidationResult<ValuesOf<F>>>
+  /**
+   * The whole form, or only the keys given — a step's, say. A subset reads the
+   * same `shape` the full run reads, so the two cannot disagree.
+   */
+  validate: (keys?: ReadonlyArray<keyof F & string>) => Promise<ValidationResult<ValuesOf<F>>>
   /**
    * One field, for validating as the user leaves it. Hidden, or without a
    * validator, it is valid — the same answer `validate()` gives for it.

@@ -1,8 +1,7 @@
 import { computed, watch } from 'vue'
-import { isStandardSchema, runStandard } from '../standard'
+import { shapeOf, validateShape } from './validate'
 import { claimFields, releaseFields } from './claim'
 import { CONTRACT_KEYS, getBindingExtenders } from './bindings'
-import type { StandardSchemaV1 } from '@standard-schema/spec'
 import type { FieldValidationResult, ValidationResult } from '../standard'
 import type { AnyFields, FieldOption, FormEngine, OptionValue, SelectedOptions, ValuesOf } from '../types'
 
@@ -105,15 +104,7 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
    * that's what erases most `.when()` calls, since the condition was already
    * stated once in `canShow`.
    */
-  const shape = computed(() => {
-    const result: Record<string, StandardSchemaV1> = {}
-    for (const key of keys) {
-      const declared = fields[key]!.schema
-      if (!declared || canShow.value[key] === false) continue
-      result[key] = isStandardSchema(declared) ? declared : (declared as () => StandardSchemaV1)()
-    }
-    return result
-  })
+  const shape = computed(() => shapeOf(fields, keys))
 
   /**
    * Composition stays the project's call — the engine has no idea whether
@@ -124,47 +115,22 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
   const composeSchema = (combine: (shape: never) => unknown) =>
     computed(() => combine(shape.value as never))
 
-  const validate = async (): Promise<ValidationResult<ValuesOf<F>>> => {
-    const errors: Record<string, string[]> = {}
-    const firstErrors: Record<string, string> = {}
-    const validated: Record<string, unknown> = {}
-
-    await Promise.all(
-      Object.entries(shape.value).map(async ([key, validator]) => {
-        const result = await runStandard(validator, fields[key]!.value)
-
-        if (result.ok) {
-          validated[key] = result.value
-          return
-        }
-
-        const messages = result.issues.map(issue => issue.message)
-        errors[key] = messages
-        if (messages[0]) firstErrors[key] = messages[0]
-      }),
-    )
-
-    return {
-      valid: Object.keys(errors).length === 0,
-      errors,
-      firstErrors,
-      values: validated as Partial<ValuesOf<F>>,
-    }
-  }
+  /**
+   * The whole form, or only the keys asked for — a step's, before a wizard
+   * advances. Either way it is the same `shape`, so a subset cannot come to a
+   * different conclusion about what is required than the submit will.
+   */
+  const validate = (subset?: readonly string[]): Promise<ValidationResult<ValuesOf<F>>> =>
+    validateShape(subset ? shapeOf(fields, subset) : shape.value, fields)
 
   /**
-   * Goes through `shape` rather than the field's own validator, so visibility
-   * and the getter form are resolved exactly as `validate()` resolves them —
-   * validating on blur can't disagree with validating on submit.
+   * One field, for validating as the user leaves it. Expressed through
+   * `validate` rather than reaching for the field's own validator, so blur and
+   * submit resolve visibility and the getter form the same way.
    */
   const validateField = async (key: string): Promise<FieldValidationResult> => {
-    const validator = shape.value[key]
-    if (!validator) return { valid: true, errors: [] }
-
-    const result = await runStandard(validator, fields[key]!.value)
-    return result.ok
-      ? { valid: true, errors: [] }
-      : { valid: false, errors: result.issues.map(issue => issue.message) }
+    const { valid, errors } = await validate([key])
+    return { valid, errors: errors[key] ?? [] }
   }
 
   const set = (patch: Partial<ValuesOf<F>>) => {
