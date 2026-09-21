@@ -635,6 +635,39 @@ It works while the form is being filled, in both directions: change the answer
 that hid a step and it comes back into the walk, and if the step being looked at
 is the one that goes away, the wizard moves to the next one still standing.
 
+### When the step changes
+
+Moving belongs to the wizard; what moving *causes* belongs to the page.
+`current` is a computed, so a watcher is the whole mechanism:
+
+```ts
+watch(current, (name) => {
+  history.replaceState(history.state, '', `#${name}`)
+  window.scrollTo({ top: 0 })
+})
+```
+
+There is no `onEnter` or `onLeave`. It would be a second way to say what a
+watcher already says, and scrolling or writing to the URL is not something a
+form domain should own.
+
+The way back in is `resume`:
+
+```ts
+const fromHash = route.hash.slice(1)
+if (steps.isStepName(fromHash)) await steps.resume(fromHash)
+```
+
+`resume` is `next()` repeated rather than a jump: it starts at the first step
+and stops at the one the data doesn't support. A wizard reopened with nothing
+filled lands on step one instead of in the middle of a form it never saw, and a
+draft restored beforehand walks all the way back to where it left off. It
+answers with the name it stopped at.
+
+`isStepName` exists because a hash — or a saved draft, or a query string — is a
+string from outside the types. Checking it once, in the open, beats casting at
+the call.
+
 ### Adding a step later
 
 Declare it and gate it. There is no `steps.add(...)`: the tree is built once,

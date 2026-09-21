@@ -605,6 +605,31 @@ describe('steps', () => {
     expect(steps.current.value).toBe('identification')
   })
 
+  /**
+   * Reopening where the user left off: the position comes from outside — a URL,
+   * a saved draft — and is walked to rather than jumped to.
+   */
+  it('resumes as far as the data allows', async () => {
+    const steps = buildWizard()
+    steps.fields.name.value = 'Ana'
+
+    expect(await steps.resume('location')).toBe('location')
+    expect(steps.current.value).toBe('location')
+  })
+
+  it('stops at the first step the data does not support', async () => {
+    const steps = buildWizard()
+
+    expect(await steps.resume('location')).toBe('identification')
+  })
+
+  it('names from outside the types are checked, not cast', () => {
+    const steps = buildWizard()
+
+    expect(steps.isStepName('location')).toBe(true)
+    expect(steps.isStepName('payment')).toBe(false)
+  })
+
   /** A step that doesn't apply is walked past, not shown and skipped over. */
   it('walks past a step that does not apply', async () => {
     const steps = buildWizard()

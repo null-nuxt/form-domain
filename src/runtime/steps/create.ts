@@ -99,6 +99,21 @@ export interface StepsController<T extends StepsInput> {
    * valid.
    */
   goTo: (name: keyof T & string) => void
+  /**
+   * Walks forward from the start, as far as the data allows, aiming for `name`
+   * — restoring a position from a URL or a saved draft.
+   *
+   * It is `next()` repeated, not a jump: every step on the way is validated, so
+   * a wizard reopened with nothing filled lands on the first step rather than
+   * in the middle of a form it skipped. Answers with the name it stopped at.
+   */
+  resume: (name: keyof T & string) => Promise<keyof T & string>
+  /**
+   * Whether a string names a step here. For values arriving from outside the
+   * types — a URL fragment, a stored draft — so the cast happens once, in the
+   * open, instead of at every call.
+   */
+  isStepName: (value: string) => value is keyof T & string
 }
 
 /**
@@ -172,6 +187,20 @@ export const refSteps = <T extends StepsInput>(
     return result as ValidationResult<StepValues<T>>
   }
 
+  const resume = async (name: keyof T & string) => {
+    wanted.value = visibleNames.value[0] ?? names[0]!
+
+    while (current.value !== name) {
+      const before = current.value
+      const result = await next()
+
+      // stopped by a step that isn't filled in, or already at the last one
+      if (!result.valid || current.value === before) break
+    }
+
+    return current.value
+  }
+
   const controller: StepsController<T> = {
     fields,
     names,
@@ -193,6 +222,8 @@ export const refSteps = <T extends StepsInput>(
       const target = visibleNames.value.indexOf(name)
       if (target !== -1 && target < index.value) wanted.value = name
     },
+    resume,
+    isStepName: (value): value is keyof T & string => (names as ReadonlyArray<string>).includes(value),
   }
 
   stepConditions.set(controller, conditions)

@@ -21,6 +21,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   steps fails to compile, and so does a step named with a number, which the
   runtime would reorder.
 
+- **`steps.resume(name)` and `steps.isStepName(value)`**, for reopening a wizard
+  where it was left — a URL fragment, a saved draft. `resume` repeats `next()`
+  rather than jumping, so it stops at the first step the data does not support;
+  `isStepName` narrows a string from outside the types, so the cast happens once
+  instead of at every call.
+
 - **`addStepRules(steps, { name: { canShow } })`**, for a step that only applies
   to some answers. A step that doesn't apply is walked past, and its fields go
   with it — hidden, unvalidated, and not required on submit, since skipping a

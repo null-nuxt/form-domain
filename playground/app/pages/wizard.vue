@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { string } from 'yup'
 
 /**
@@ -51,6 +51,27 @@ const { register, values } = toForm(steps.fields)
 
 /** Destructured for the same reason the engine is: the template unwraps refs. */
 const { visibleNames, current, activeKeys, isFirst, isLast, back, next } = steps
+
+/**
+ * Moving is the wizard's; what moving CAUSES is the page's. Scroll, the URL,
+ * analytics — `current` is a computed, so a watcher is the whole mechanism.
+ */
+const route = useRoute()
+
+watch(current, (name) => {
+  history.replaceState(history.state, '', `#${name}`)
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+})
+
+/**
+ * And the way back in. A hash is a string from outside the types, so it is
+ * checked rather than cast, and `resume` walks to it through validation instead
+ * of dropping the user into the middle of a form they never filled.
+ */
+onMounted(() => {
+  const fromHash = route.hash.slice(1)
+  if (steps.isStepName(fromHash)) void steps.resume(fromHash)
+})
 
 /**
  * `next()` validates the active step and stays put if it fails. What to do with
