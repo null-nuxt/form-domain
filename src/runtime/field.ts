@@ -1,5 +1,5 @@
 import { markRaw, reactive } from 'vue'
-import type { FieldOption, OptionValue, SelectedOf } from './types'
+import type { FieldOption, OptionValue, Prettify, SelectedOf } from './types'
 
 /**
  * What a field is declared with. Structure only — anything that depends on the
@@ -206,6 +206,62 @@ export type BuiltFields<T extends FieldsInput> = {
     DeclaredOfSource<T[K]>
   >
 }
+
+/**
+ * One fragment, checked against the keys the fragments before it already
+ * declared.
+ *
+ * Two fragments declaring the same key is not a merge, it is the later one
+ * winning. Spreading picks it silently, which is the kind of quiet the rest of
+ * this module exists to remove — so the later one is what fails, since it is
+ * the one doing the overriding.
+ *
+ * A fragment typed as the wide `FieldsInput` is refused for a different reason:
+ * its keys are not known, so the merged record gets an index signature, and
+ * from there `register('anything')` compiles. The check would be passing by
+ * accepting everything.
+ *
+ * The offending fragment is what collapses, the same double defence
+ * `CheckedFields` uses, so the error lands on it rather than on the whole call.
+ */
+type CheckedFragment<T, Seen> = string extends keyof T
+  ? { __fieldKeysNotKnown: 'this fragment\'s keys are not known here, so the merged fields would accept any key — pass a concrete declaration' }
+  : [keyof T & Seen] extends [never]
+      ? T
+      : { __duplicateFieldKey: `already declared by an earlier fragment: ${Extract<keyof T & Seen, string>}` }
+
+/** Each fragment against the ones before it, carrying their keys along. */
+export type CheckedFragments<T extends readonly FieldsInput[], Seen = never> =
+  T extends readonly [infer First, ...infer Rest extends readonly FieldsInput[]]
+    ? [
+        CheckedFragment<First, Seen>,
+        ...CheckedFragments<Rest, Seen | (string extends keyof First ? never : keyof First)>,
+      ]
+    : []
+
+type Intersected<T extends readonly unknown[]> =
+  T extends readonly [infer First, ...infer Rest] ? First & Intersected<Rest> : unknown
+
+/** The fragments as one declaration, flattened — the composition leaves no trace. */
+export type MergedFields<T extends readonly FieldsInput[]> = Prettify<Intersected<T>>
+
+/**
+ * Composes declaration fragments into one declaration.
+ *
+ * Fragments, not forms: what gets merged is inert data, and only then does
+ * `refFields()` build it. That ordering is the whole point. Merging what was
+ * already built would hand two forms the same reactive field — the leak
+ * `claimFields` now catches — and it would also leave each field typed with the
+ * value map of the fragment it came from, so a rule from one slice could not
+ * patch a key from another. Built after merging, every field knows the whole
+ * tree.
+ *
+ * There is no runtime check for a repeated key. The types can see it, and this
+ * module only spends runtime warnings on what they cannot.
+ */
+export const mergeFields = <T extends readonly FieldsInput[]>(
+  fragments: [...T] & CheckedFragments<T>,
+): MergedFields<T> => Object.assign({}, ...fragments) as MergedFields<T>
 
 /**
  * The form's fields, named. This is where a field learns its own key, so the

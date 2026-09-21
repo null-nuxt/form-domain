@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { string } from 'yup'
 import { addRule, addRules, addSchemas } from '../src/runtime/register'
 import { defineFormDomain, toForm } from '../src/runtime/define'
-import { refField, refFields } from '../src/runtime/field'
+import { mergeFields, refField, refFields } from '../src/runtime/field'
 import { getFormRegistry } from '../src/runtime/registry'
 import { extendFormBindings } from '../src/runtime/bindings'
 import { collectDomainFiles, findDomainFiles } from '../src/module'
@@ -161,6 +161,53 @@ describe('a standalone, reusable field', () => {
     expect(form.fields.cpf.meta).toEqual({ mask: 'cpf' })
     // the key is only learned at assembly
     expect(form.fields.cpf.key).toBe('cpf')
+  })
+})
+
+describe('mergeFields', () => {
+  /** Fragments are plain data: nothing reactive, so module scope is where they belong. */
+  const customer = { name: { label: 'Name', value: '' } }
+  const address = { cep: { label: 'CEP', value: '' }, city: { label: 'City', value: '' } }
+
+  it('builds one form out of several fragments', () => {
+    const form = toForm(refFields(mergeFields([customer, address])))
+
+    expect(Object.keys(form.values.value)).toEqual(['name', 'cep', 'city'])
+    expect(form.register('cep').name).toBe('cep')
+  })
+
+  /**
+   * What merging declarations buys over merging forms: the fragments are still
+   * data afterwards, so the same two build a second form that shares nothing
+   * with the first.
+   */
+  it('leaves the fragments alone, so they compose again', () => {
+    const first = toForm(refFields(mergeFields([customer, address])))
+    const second = toForm(refFields(mergeFields([customer, address])))
+
+    first.set({ name: 'Ana' })
+
+    expect(second.values.value.name).toBe('')
+    expect(customer.name).toEqual({ label: 'Name', value: '' })
+  })
+
+  /**
+   * And the reason the order matters: merging first means every field is built
+   * knowing the whole tree, so a rule declared in one fragment writes into
+   * another. Merging built fields would leave each one typed with its own
+   * fragment.
+   */
+  it('lets a rule from one fragment write into another', async () => {
+    const fields = refFields(mergeFields([customer, address]))
+    addRule(fields.cep, {
+      onChange: (value, ctx) => ctx.patch({ city: value === '50000000' ? 'Recife' : '' }),
+    })
+
+    const form = toForm(fields)
+    form.set({ cep: '50000000' })
+    await nextTick()
+
+    expect(form.values.value.city).toBe('Recife')
   })
 })
 

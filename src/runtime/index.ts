@@ -1,5 +1,5 @@
 // `#forms` is the package's public entry point
-export { refField, refFields } from './field'
+export { mergeFields, refField, refFields } from './field'
 export { addRule, addRules, addSchema, addSchemas } from './register'
 export { defineFormDomain, toForm } from './define'
 export { extendFormBindings } from './bindings'
@@ -12,6 +12,7 @@ export type {
   FieldObj,
   FieldRule,
   FieldsInput,
+  MergedFields,
 } from './field'
 
 export type { SchemaSource } from './register'

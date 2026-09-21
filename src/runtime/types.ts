@@ -146,7 +146,8 @@ type DeclaredOf<F extends AnyFields, K extends keyof F> =
 type DeclaredExtras<F extends AnyFields, K extends keyof F> =
   | ('placeholder' extends keyof DeclaredOf<F, K> ? 'placeholder' : never)
 
-type Prettify<T> = { [K in keyof T]: T[K] } & {}
+/** Flattens an intersection into one object, so a hover shows the shape and not the seams. */
+export type Prettify<T> = { [K in keyof T]: T[K] } & {}
 
 /** What an input component receives from `register(key)`. */
 export type FieldBindings<F extends AnyFields, K extends keyof F & string> = Prettify<

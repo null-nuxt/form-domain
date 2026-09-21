@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { object, string } from 'yup'
+import type { FieldsInput } from '#forms'
 
 /**
  * Type fixture for the domain. Every `@ts-expect-error` here is a guarantee: if
@@ -249,6 +250,46 @@ extendFormBindings(() => ({ 'onUpdate:modelValue': () => {} }))()
 
 // @ts-expect-error nor the value it binds
 extendFormBindings(() => ({ modelValue: 'fake' }))()
+
+/**
+ * Fragments compose as DECLARATIONS, before anything is built. The merged record
+ * is flat, its keys are known, and — because building happens after — every
+ * field is typed with the whole tree instead of with the fragment it came from.
+ */
+const customerFragment = { name: { label: 'Name', value: '' } }
+const addressFragment = { cep: { label: 'CEP', value: '' }, city: { label: 'City', value: '' } }
+
+const merged = refFields(mergeFields([customerFragment, addressFragment]))
+const mergedForm = toForm(merged)
+
+void mergedForm.register('cep').name
+
+// @ts-expect-error no fragment declared this key
+void mergedForm.register('nope')
+
+/** A rule declared in one fragment reaches a key from another. */
+addRule(merged.cep, { onChange: (value, ctx) => ctx.patch({ city: value }) })
+
+addRule(merged.cep, {
+  // @ts-expect-error and still only the keys that exist
+  onChange: (value, ctx) => ctx.patch({ nope: value }),
+})
+
+/** The same key twice is the later fragment winning, not a merge. */
+mergeFields([
+  { cpf: { label: 'CPF', value: '' } },
+  // @ts-expect-error `cpf` was already declared by an earlier fragment
+  { cpf: { label: 'Document', value: '' } },
+])
+
+/**
+ * A fragment whose keys aren't known would give the merged record an index
+ * signature, and from there every key compiles.
+ */
+const dynamicFragment: FieldsInput = { whatever: { label: 'X', value: '' } }
+
+// @ts-expect-error this fragment's keys are not known here
+mergeFields([customerFragment, dynamicFragment])
 
 /** A standalone field sits next to the declarations and keeps its precision. */
 const sharedCpf = refField({ label: 'CPF', value: '', meta: { mask: 'cpf' } })

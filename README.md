@@ -523,6 +523,46 @@ object driving two forms logs a warning naming the cause. A warning and not a
 throw — by then the app is serving, and turning a data leak into a blank page
 helps nobody.
 
+## Composing fragments
+
+A form assembled from parts composes the **declarations**, not the built fields:
+
+```ts
+// fragments/address.ts — plain data, safe at module scope
+export const address = {
+  cep: { label: 'CEP', value: '' },
+  city: { label: 'City', value: '' },
+}
+
+// inside the setup
+const fields = refFields(mergeFields([customer, address]))
+```
+
+`mergeFields` returns one flat declaration — the composition leaves no trace in
+the type — and the fragments are still data afterwards, so the same two build
+the next form without sharing anything with this one.
+
+The order is the whole point. Merging before building is what gives every field
+the whole tree: a rule declared next to `cep` can `ctx.patch({ name })` from the
+other fragment, because both existed when the fields were built. Merging what
+was already built would leave each field typed with the fragment it came from,
+and would hand two forms the same reactive field — the leak above, arriving by a
+route that a record-level guard cannot see.
+
+Two fragments declaring the same key is not a merge, it is the later one
+winning. That is a compile error, on the fragment doing the overriding:
+
+```ts
+mergeFields([
+  { cpf: { label: 'CPF', value: '' } },
+  { cpf: { label: 'Document', value: '' } },  // already declared by an earlier fragment: cpf
+])
+```
+
+A fragment whose keys aren't known — one typed as the wide `FieldsInput` — is
+refused too: the merged record would get an index signature, and from there
+`register('anything')` compiles.
+
 ## What the compiler guarantees
 
 | Error | When it surfaces |
@@ -531,6 +571,7 @@ helps nobody.
 | `register()` on a field that doesn't exist | **compile time** |
 | `register()` reading an extra the field never declared | **compile time** |
 | an option whose value doesn't match the field's | **compile time** |
+| two fragments declaring the same field | **compile time** |
 | `deriveOptions` on a field that declared no options | **compile time** |
 | reading `options`/`selected` on a field that isn't a choice | **compile time** |
 | `useFormDomain('unknown-slug')` | **compile time** |
@@ -543,6 +584,7 @@ helps nobody.
 ```ts
 refField({ label, value })        // one field, reusable across domains
 refFields({ name: { ... } })      // the form's fields, named
+mergeFields([a, b])               // declaration fragments into one
 
 addRule(field, rule)           // behaviour for one field
 addRules(fields, { ... })      // for several, keyed

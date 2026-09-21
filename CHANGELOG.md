@@ -6,6 +6,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **`mergeFields([a, b])`**, for composing declaration fragments into one flat
+  declaration. Fragments are plain data, so they stay reusable at module scope,
+  and merging before `refFields()` is what types every field with the whole tree
+  — a rule from one fragment can patch a key from another. A key declared twice
+  fails to compile, on the fragment doing the overriding.
+
 ### Fixed
 
 - **The guard against shared state follows the field, not the record.** It

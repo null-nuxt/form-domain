@@ -107,6 +107,7 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
       addImports([
         { name: 'refField', from: resolver.resolve('./runtime/field') },
         { name: 'refFields', from: resolver.resolve('./runtime/field') },
+        { name: 'mergeFields', from: resolver.resolve('./runtime/field') },
         { name: 'addRule', from: resolver.resolve('./runtime/register') },
         { name: 'addRules', from: resolver.resolve('./runtime/register') },
         { name: 'addSchema', from: resolver.resolve('./runtime/register') },
