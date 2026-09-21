@@ -1,5 +1,6 @@
 import { computed, watch } from 'vue'
 import { shapeOf, validateShape } from './validate'
+import { isVisible } from './visibility'
 import { claimFields, releaseFields } from './claim'
 import { CONTRACT_KEYS, getBindingExtenders } from './bindings'
 import type { FieldValidationResult, ValidationResult } from '../standard'
@@ -46,10 +47,7 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
 
   const canShow = computed(() => {
     const result: Record<string, boolean> = {}
-    for (const key of keys) {
-      const rule = fields[key]!.rule
-      result[key] = rule?.canShow ? rule.canShow() : true
-    }
+    for (const key of keys) result[key] = isVisible(fields[key]!)
     return result as { [K in keyof F]: boolean }
   })
 

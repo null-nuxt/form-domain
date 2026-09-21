@@ -612,6 +612,41 @@ page renders the current step with a `v-for`:
 />
 ```
 
+### A step that only applies sometimes
+
+`addStepRules` attaches to steps what `addRules` attaches to fields, keyed the
+same way:
+
+```ts
+addStepRules(steps, {
+  company: { canShow: () => steps.fields.kind.value === 'PJ' },
+})
+```
+
+A step that doesn't apply is walked past: `next()` and `back()` go around it,
+`visibleNames` leaves it out, and `goTo` refuses it. And its fields go with it —
+they stop being shown, stop being validated, and stop being required on submit.
+
+That last part is the whole reason it is a step rule and not a flag in the page.
+A step skipped while its fields stayed in the schema is a form that cannot be
+sent and cannot say which field is missing.
+
+It works while the form is being filled, in both directions: change the answer
+that hid a step and it comes back into the walk, and if the step being looked at
+is the one that goes away, the wizard moves to the next one still standing.
+
+### Adding a step later
+
+Declare it and gate it. There is no `steps.add(...)`: the tree is built once,
+and that is what makes `values`, the payload and every key `register()` accepts
+typed — a step appearing at runtime would widen all of them to "whatever turns
+up".
+
+A step that exists only for some answers is declared like any other and given a
+`canShow`. A step that comes from data — one block per address the user adds —
+is a different feature: repetition rather than condition, and this module does
+not have it yet.
+
 A field key declared by two steps means one of them is ignored, since the tree
 is built once — that is a compile error naming the key, on both steps, because
 a record has no order for the types to blame the later one with. A step named
@@ -628,6 +663,7 @@ rest, so the wizard would walk in an order nobody wrote.
 | an option whose value doesn't match the field's | **compile time** |
 | two fragments declaring the same field | **compile time** |
 | two steps declaring the same field | **compile time** |
+| `addStepRules` naming a step that doesn't exist | **compile time** |
 | `goTo()` naming a step that doesn't exist | **compile time** |
 | `deriveOptions` on a field that declared no options | **compile time** |
 | reading `options`/`selected` on a field that isn't a choice | **compile time** |
@@ -644,6 +680,7 @@ refFields({ name: { ... } })      // the form's fields, named
 mergeFields([a, b])               // declaration fragments into one
 defineFields({ name: { ... } })   // a declaration in its own file, checked there
 refSteps({ who: { ... } })        // one tree out of the steps, plus where in it we are
+addStepRules(steps, { who: {...} })  // when a step applies at all
 
 addRule(field, rule)           // behaviour for one field
 addRules(fields, { ... })      // for several, keyed

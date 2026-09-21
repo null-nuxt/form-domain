@@ -11,6 +11,17 @@ const steps = refSteps({
   who: {
     name: { label: 'Full name*', value: '', placeholder: 'Your full name' },
     email: { label: 'Email*', value: '', placeholder: 'you@example.com' },
+    kind: {
+      label: 'Profile*',
+      value: '' as 'PF' | 'PJ' | '',
+      options: [
+        { label: 'Individual', value: 'PF' },
+        { label: 'Company', value: 'PJ' },
+      ],
+    },
+  },
+  company: {
+    tradeName: { label: 'Trade name*', value: '' },
   },
   where: {
     postcode: { label: 'Postcode*', value: '', placeholder: '00000-000' },
@@ -18,10 +29,20 @@ const steps = refSteps({
   },
 })
 
+/**
+ * A step that only applies to some answers. Skipping it takes its fields with
+ * it: they are not shown, not validated, and not required on submit.
+ */
+addStepRules(steps, {
+  company: { canShow: () => steps.fields.kind.value === 'PJ' },
+})
+
 /** One tree, so the validators are attached once, for the whole form. */
 addSchemas(steps.fields, {
   name: string().required('Name is required').min(3, 'Name is too short'),
   email: string().required('Email is required').email('Invalid email'),
+  kind: string().required('Profile is required'),
+  tradeName: string().required('Trade name is required'),
   postcode: string().required('Postcode is required'),
   city: string().required('City is required'),
 })
@@ -29,7 +50,7 @@ addSchemas(steps.fields, {
 const { register, values } = toForm(steps.fields)
 
 /** Destructured for the same reason the engine is: the template unwraps refs. */
-const { names, current, activeKeys, isFirst, isLast, back, next } = steps
+const { visibleNames, current, activeKeys, isFirst, isLast, back, next } = steps
 
 /**
  * `next()` validates the active step and stays put if it fails. What to do with
@@ -48,7 +69,7 @@ const advance = async () => {
 
     <ol style="display:flex; gap:1rem; list-style:none; padding:0; font-size:.85rem">
       <li
-        v-for="name in names"
+        v-for="name in visibleNames"
         :key="name"
         :style="{ fontWeight: name === current ? '600' : '400', color: name === current ? '#18181b' : '#a1a1aa' }"
       >
@@ -61,11 +82,20 @@ const advance = async () => {
       @submit.prevent="advance"
     >
       <!-- only the active step's fields, and register() types each key -->
-      <SimpleInput
+      <!-- the bindings say which it is: a choice arrives with its list -->
+      <template
         v-for="key in activeKeys"
         :key="key"
-        v-bind="register(key)"
-      />
+      >
+        <SimpleSelect
+          v-if="'options' in register(key)"
+          v-bind="register(key)"
+        />
+        <SimpleInput
+          v-else
+          v-bind="register(key)"
+        />
+      </template>
 
       <div style="display:flex; gap:.5rem">
         <button

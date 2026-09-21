@@ -110,6 +110,7 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         { name: 'mergeFields', from: resolver.resolve('./runtime/fields/declare') },
         { name: 'defineFields', from: resolver.resolve('./runtime/fields/declare') },
         { name: 'refSteps', from: resolver.resolve('./runtime/steps/create') },
+        { name: 'addStepRules', from: resolver.resolve('./runtime/steps/register') },
         { name: 'addRule', from: resolver.resolve('./runtime/fields/register') },
         { name: 'addRules', from: resolver.resolve('./runtime/fields/register') },
         { name: 'addSchema', from: resolver.resolve('./runtime/fields/register') },

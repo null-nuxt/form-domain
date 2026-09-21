@@ -1,4 +1,5 @@
 import { isStandardSchema, runStandard } from '../standard'
+import { isVisible } from './visibility'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
 import type { ValidationResult } from '../standard'
 import type { AnyFields, ValuesOf } from '../types'
@@ -18,7 +19,7 @@ export const shapeOf = (fields: AnyFields, keys: readonly string[]): Record<stri
     const field = fields[key]
     const declared = field?.schema
     if (!field || !declared) continue
-    if (field.rule?.canShow && field.rule.canShow() === false) continue
+    if (!isVisible(field)) continue
 
     result[key] = isStandardSchema(declared) ? declared : (declared as () => StandardSchemaV1)()
   }

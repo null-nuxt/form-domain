@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { refFields } from '../fields/declare'
 import { shapeOf, validateShape } from '../engine/validate'
+import { isVisible } from '../engine/visibility'
 import type { ComputedRef } from 'vue'
 import type { BuiltFields, CheckedFields, FieldsInput, ValueOfSource } from '../fields/declare'
 import type { ValidationResult } from '../standard'
@@ -55,17 +56,34 @@ type AtLeastOneStep<T> = [keyof T] extends [never]
   ? { __noSteps: 'a wizard needs at least one step' }
   : T
 
+/**
+ * Each controller's step conditions, kept outside it so `addStepRules` can
+ * write where the navigation reads without the map becoming public API.
+ */
+const stepConditions = new WeakMap<object, Map<string, () => boolean>>()
+
+/** Internal, for `addStepRules`: the conditions of a controller built here. */
+export const conditionsOf = (controller: object): Map<string, () => boolean> | undefined =>
+  stepConditions.get(controller)
+
 /** Where the wizard is, and what it takes to leave. */
 export interface StepsController<T extends StepsInput> {
   /** One tree, built once, out of every step's declaration. */
   fields: BuiltFields<AllFields<T>>
-  /** The step names, in the order they were declared. */
+  /** Every step name, in the order they were declared — skipped ones included. */
   names: ReadonlyArray<keyof T & string>
+  /** Whether each step applies, given what has been filled so far. */
+  canShow: ComputedRef<Record<keyof T & string, boolean>>
+  /** The ones actually walked: what a progress indicator should count. */
+  visibleNames: ComputedRef<ReadonlyArray<keyof T & string>>
   current: ComputedRef<keyof T & string>
   index: ComputedRef<number>
   isFirst: ComputedRef<boolean>
   isLast: ComputedRef<boolean>
-  /** The active step's keys — what a template iterates to render only this step. */
+  /**
+   * The active step's keys, minus the ones a rule is hiding — what a template
+   * iterates to render exactly what this step is asking for right now.
+   */
   activeKeys: ComputedRef<ReadonlyArray<keyof AllFields<T> & string>>
   keysOf: <TName extends keyof T & string>(name: TName) => ReadonlyArray<keyof T[TName] & string>
   /**
@@ -76,8 +94,9 @@ export interface StepsController<T extends StepsInput> {
   next: () => Promise<ValidationResult<StepValues<T>>>
   back: () => void
   /**
-   * Backwards only. Forward goes through `next`, so a step cannot be skipped
-   * without having been asked whether it is valid.
+   * Backwards only, and only to a step that applies. Forward goes through
+   * `next`, so a step cannot be skipped without having been asked whether it is
+   * valid.
    */
   goTo: (name: keyof T & string) => void
 }
@@ -112,8 +131,34 @@ export const refSteps = <T extends StepsInput>(
   const names = Object.keys(declared) as ReadonlyArray<keyof T & string>
   const keys = new Map(Object.entries(declared).map(([name, slice]) => [name, Object.keys(slice)]))
 
-  const position = ref(0)
-  const current = computed(() => names[position.value]!)
+  /** Filled by `addStepRules`. Empty means every step applies. */
+  const conditions = new Map<string, () => boolean>()
+
+  const canShow = computed(() => {
+    const result = {} as Record<keyof T & string, boolean>
+    for (const name of names) result[name] = conditions.get(name)?.() !== false
+
+    return result
+  })
+
+  const visibleNames = computed(() => names.filter(name => canShow.value[name]))
+
+  /**
+   * The step asked for, which is not always the step shown: what was filled in
+   * one step can take another one away, including the one being looked at.
+   */
+  const wanted = ref(names[0]!)
+
+  const current = computed(() => {
+    const visible = visibleNames.value
+    if (visible.includes(wanted.value)) return wanted.value
+
+    // it went away under us: the next one still standing, or the last one before it
+    const at = names.indexOf(wanted.value)
+    return visible.find(name => names.indexOf(name) > at) ?? visible[visible.length - 1] ?? names[0]!
+  })
+
+  const index = computed(() => visibleNames.value.indexOf(current.value))
 
   const next = async () => {
     const result = await validateShape(
@@ -121,27 +166,36 @@ export const refSteps = <T extends StepsInput>(
       fields as AnyFields,
     )
 
-    if (result.valid && position.value < names.length - 1) position.value += 1
+    const ahead = visibleNames.value[index.value + 1]
+    if (result.valid && ahead) wanted.value = ahead
 
     return result as ValidationResult<StepValues<T>>
   }
 
-  return {
+  const controller: StepsController<T> = {
     fields,
     names,
+    canShow,
+    visibleNames,
     current,
-    index: computed(() => position.value),
-    isFirst: computed(() => position.value === 0),
-    isLast: computed(() => position.value === names.length - 1),
-    activeKeys: computed(() => (keys.get(current.value) ?? []) as unknown as ReadonlyArray<keyof AllFields<T> & string>),
+    index,
+    isFirst: computed(() => index.value <= 0),
+    isLast: computed(() => index.value === visibleNames.value.length - 1),
+    activeKeys: computed(() => (keys.get(current.value) ?? [])
+      .filter(key => isVisible((fields as AnyFields)[key]!)) as unknown as ReadonlyArray<keyof AllFields<T> & string>),
     keysOf: name => (keys.get(name) ?? []) as never,
     next,
     back: () => {
-      if (position.value > 0) position.value -= 1
+      const behind = visibleNames.value[index.value - 1]
+      if (behind) wanted.value = behind
     },
     goTo: (name) => {
-      const target = names.indexOf(name)
-      if (target !== -1 && target < position.value) position.value = target
+      const target = visibleNames.value.indexOf(name)
+      if (target !== -1 && target < index.value) wanted.value = name
     },
   }
+
+  stepConditions.set(controller, conditions)
+
+  return controller
 }

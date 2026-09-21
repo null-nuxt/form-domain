@@ -21,6 +21,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   steps fails to compile, and so does a step named with a number, which the
   runtime would reorder.
 
+- **`addStepRules(steps, { name: { canShow } })`**, for a step that only applies
+  to some answers. A step that doesn't apply is walked past, and its fields go
+  with it — hidden, unvalidated, and not required on submit, since skipping a
+  step while still asking for its fields is a form that cannot be sent and
+  cannot say why.
+
 - **`defineFields({ ... })`**, for a declaration living in its own file: it
   returns what it was given, and exists so the editor completes it and so a bad
   option fails in that file rather than wherever the fragment is used.

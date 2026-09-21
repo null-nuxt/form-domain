@@ -67,6 +67,15 @@ export interface FieldObj<TValue, TValues = Record<string, unknown>, TDeclared =
   declaredOptions?: ReadonlyArray<FieldOption<OptionValue<TValue>>>
   /** Written by `addRule`. Read by the engine. */
   rule?: FieldRule<TValue, TValues>
+  /**
+   * Written by `addStepRules`: the group this field belongs to — a wizard step
+   * — can be skipped, and a field in a skipped group is hidden with it.
+   *
+   * A slot of its own rather than the rule's `canShow`, because the two answer
+   * different questions and a field has one rule: "does this field apply" is
+   * the field's, "does this part of the form apply at all" is the group's.
+   */
+  groupCanShow?: () => boolean
   /** Written by `addSchema`. A getter when the validator depends on state. */
   schema?: unknown
   /** The option matching the current value — or the options, for a multi-choice field. */
@@ -87,6 +96,7 @@ interface ReactiveSource<TValue> {
   readonly meta: Record<string, unknown> | undefined
   declaredOptions?: ReadonlyArray<FieldOption<OptionValue<TValue>>>
   rule?: FieldRule<TValue, Record<string, unknown>>
+  groupCanShow?: () => boolean
   schema?: unknown
   readonly selected: SelectedOf<TValue>
   readonly __isFormField: true

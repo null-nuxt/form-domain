@@ -315,6 +315,11 @@ void wizardForm.register('street')
 // @ts-expect-error a key no step declared
 void wizardForm.register('missing')
 
+addStepRules(wizard, { location: { canShow: () => true } })
+
+// @ts-expect-error there is no step by that name
+addStepRules(wizard, { payment: { canShow: () => true } })
+
 /**
  * A field key in two steps means one of them is ignored: the tree is built
  * once. A record has no order the types can read, so both are named.

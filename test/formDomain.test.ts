@@ -9,6 +9,7 @@ import { defineFormDomain, toForm } from '../src/runtime/domain/define'
 import { defineFields, mergeFields, refField, refFields } from '../src/runtime/fields/declare'
 import { getFormRegistry } from '../src/runtime/domain/registry'
 import { refSteps } from '../src/runtime/steps/create'
+import { addStepRules } from '../src/runtime/steps/register'
 import { extendFormBindings } from '../src/runtime/engine/bindings'
 import { collectDomainFiles, findDomainFiles } from '../src/module'
 
@@ -602,6 +603,81 @@ describe('steps', () => {
 
     steps.goTo('location')
     expect(steps.current.value).toBe('identification')
+  })
+
+  /** A step that doesn't apply is walked past, not shown and skipped over. */
+  it('walks past a step that does not apply', async () => {
+    const steps = buildWizard()
+    addStepRules(steps, { location: { canShow: () => steps.fields.personType.value === 'PJ' } })
+    steps.fields.name.value = 'Ana'
+
+    expect(steps.visibleNames.value).toEqual(['identification'])
+    expect(steps.isLast.value).toBe(true)
+
+    expect((await steps.next()).valid).toBe(true)
+    expect(steps.current.value).toBe('identification')
+  })
+
+  /**
+   * The trap this closes: a step walked past while its fields stayed in the
+   * shape is a form that cannot be submitted and cannot say why.
+   */
+  it("a skipped step's fields are not required on submit", async () => {
+    const steps = buildWizard()
+    addStepRules(steps, { location: { canShow: () => steps.fields.personType.value === 'PJ' } })
+    steps.fields.name.value = 'Ana'
+
+    const form = toForm(steps.fields)
+    expect((await form.validate()).valid).toBe(true)
+
+    steps.fields.personType.value = 'PJ'
+    await nextTick()
+
+    expect((await form.validate()).firstErrors.street).toBe('Street is required')
+  })
+
+  it('takes the step back into the walk when the data says so', async () => {
+    const steps = buildWizard()
+    addStepRules(steps, { location: { canShow: () => steps.fields.personType.value === 'PJ' } })
+
+    steps.fields.name.value = 'Ana'
+    steps.fields.personType.value = 'PJ'
+
+    expect(steps.visibleNames.value).toEqual(['identification', 'location'])
+    await steps.next()
+    expect(steps.current.value).toBe('location')
+  })
+
+  /** And the step being looked at can be the one that goes away. */
+  it('moves off the active step when it stops applying', async () => {
+    const steps = buildWizard()
+    addStepRules(steps, { location: { canShow: () => steps.fields.personType.value === 'PJ' } })
+
+    steps.fields.name.value = 'Ana'
+    steps.fields.personType.value = 'PJ'
+    await steps.next()
+    expect(steps.current.value).toBe('location')
+
+    steps.fields.personType.value = 'PF'
+
+    expect(steps.current.value).toBe('identification')
+  })
+
+  it('refuses to go to a step that does not apply', async () => {
+    const steps = buildWizard()
+    addStepRules(steps, { identification: { canShow: () => false } })
+
+    steps.goTo('identification')
+    expect(steps.current.value).toBe('location')
+  })
+
+  /** What the step shows now, not what it declared: a hidden field is dropped. */
+  it('activeKeys leaves out a field its own rule is hiding', () => {
+    const steps = buildWizard()
+    addRule(steps.fields.personType, { canShow: () => false })
+
+    expect(steps.keysOf('identification')).toEqual(['name', 'personType'])
+    expect(steps.activeKeys.value).toEqual(['name'])
   })
 
   /**
