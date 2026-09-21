@@ -529,14 +529,19 @@ A form assembled from parts composes the **declarations**, not the built fields:
 
 ```ts
 // fragments/address.ts — plain data, safe at module scope
-export const address = {
+export const address = defineFields({
   cep: { label: 'CEP', value: '' },
   city: { label: 'City', value: '' },
-}
+})
 
 // inside the setup
 const fields = refFields(mergeFields([customer, address]))
 ```
+
+`defineFields` builds nothing — it returns what it was given. It is there for
+what happens while you type: the editor completes the declaration, and an option
+whose value doesn't match its field fails in the file that declared it instead
+of wherever the fragment is later picked up. A bare object literal still works.
 
 `mergeFields` returns one flat declaration — the composition leaves no trace in
 the type — and the fragments are still data afterwards, so the same two build
@@ -565,21 +570,27 @@ refused too: the merged record would get an index signature, and from there
 
 ## Multi-step forms
 
-A wizard is one form shown in parts, not several forms. `defineStep` names a
-slice of the declaration; `refSteps` builds every slice into a single tree and
-returns the machine that walks it:
+A wizard is one form shown in parts, not several forms. `refSteps` takes the
+steps keyed by name, merges their declarations into a single tree, and returns
+the machine that walks it:
 
 ```ts
-const steps = refSteps([
-  defineStep('who', { name: { label: 'Name', value: '' } }),
-  defineStep('where', { city: { label: 'City', value: '' } }),
-])
+const steps = refSteps({
+  who: { name: { label: 'Name', value: '' } },
+  where: { city: { label: 'City', value: '' } },
+})
 
 addSchemas(steps.fields, { name: string().required(), city: string().required() })
 
 const { register } = toForm(steps.fields)
 const { names, current, activeKeys, isFirst, isLast, back, next } = steps
 ```
+
+Keyed, like everything else here — `refFields({ key })`, `addRules(fields, { key })`.
+The name belongs to the wizard rather than to the fragment: the same address
+declaration is `where` in this form and `delivery` in the next one, and a step
+reused in two places doesn't drag a name along. TypeScript also refuses the same
+key twice in a literal, so two steps cannot share a name by accident.
 
 `next()` validates the active step's keys — through the same `shape` the submit
 reads — and advances only if they pass. The result comes back either way:
@@ -601,13 +612,11 @@ page renders the current step with a `v-for`:
 />
 ```
 
-The declarations go through the same check `mergeFields` does, because that is
-what happens to them: a field key declared by two steps is a compile error on
-the later one, and so is a step name used twice.
-
-The prefixes mean what the table above says. `defineStep` declares data and can
-live at module scope beside the fragments it is made of; `refSteps` is where the
-state appears, which is why it belongs inside a setup.
+A field key declared by two steps means one of them is ignored, since the tree
+is built once — that is a compile error naming the key, on both steps, because
+a record has no order for the types to blame the later one with. A step named
+with a number is refused too: the runtime orders integer-like keys ahead of the
+rest, so the wizard would walk in an order nobody wrote.
 
 ## What the compiler guarantees
 
@@ -618,7 +627,7 @@ state appears, which is why it belongs inside a setup.
 | `register()` reading an extra the field never declared | **compile time** |
 | an option whose value doesn't match the field's | **compile time** |
 | two fragments declaring the same field | **compile time** |
-| two steps declaring the same field, or the same name | **compile time** |
+| two steps declaring the same field | **compile time** |
 | `goTo()` naming a step that doesn't exist | **compile time** |
 | `deriveOptions` on a field that declared no options | **compile time** |
 | reading `options`/`selected` on a field that isn't a choice | **compile time** |
@@ -633,8 +642,8 @@ state appears, which is why it belongs inside a setup.
 refField({ label, value })        // one field, reusable across domains
 refFields({ name: { ... } })      // the form's fields, named
 mergeFields([a, b])               // declaration fragments into one
-defineStep(name, { ... })         // one step's slice of the declaration
-refSteps([stepA, stepB])          // one tree, plus where in it we are
+defineFields({ name: { ... } })   // a declaration in its own file, checked there
+refSteps({ who: { ... } })        // one tree out of the steps, plus where in it we are
 
 addRule(field, rule)           // behaviour for one field
 addRules(fields, { ... })      // for several, keyed

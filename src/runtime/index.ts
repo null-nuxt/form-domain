@@ -1,8 +1,7 @@
 // `#forms` is the package's public entry point
-export { mergeFields, refField, refFields } from './fields/declare'
+export { defineFields, mergeFields, refField, refFields } from './fields/declare'
 export { addRule, addRules, addSchema, addSchemas } from './fields/register'
 export { defineFormDomain, toForm } from './domain/define'
-export { defineStep } from './steps/declare'
 export { refSteps } from './steps/create'
 export { extendFormBindings } from './engine/bindings'
 
@@ -19,9 +18,7 @@ export type {
 
 export type { SchemaSource } from './fields/register'
 
-export type { StepInput } from './steps/declare'
-
-export type { StepsController } from './steps/create'
+export type { StepsController, StepsInput } from './steps/create'
 
 export type { FieldValidationResult, ValidationResult } from './standard'
 

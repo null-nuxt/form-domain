@@ -270,6 +270,22 @@ export const mergeFields = <T extends readonly FieldsInput[]>(
 ): MergedFields<T> => Object.assign({}, ...fragments) as MergedFields<T>
 
 /**
+ * Declares fields without building them.
+ *
+ * It returns exactly what it was given — the point is not what it does at
+ * runtime, it is what it does while you type: the editor completes `label`,
+ * `value`, `options` and `meta`, and an option whose value doesn't match its
+ * field fails HERE, in the file that declared it, instead of at whichever form
+ * later picked the fragment up.
+ *
+ * A bare object literal still works and stays the simplest thing that can
+ * work. This is for a fragment meant to be reused, where the mistake would
+ * otherwise surface far from the file that made it.
+ */
+export const defineFields = <T extends FieldsInput>(declaration: T & CheckedFields<T>): T =>
+  declaration as T
+
+/**
  * The form's fields, named. This is where a field learns its own key, so the
  * template never repeats the name next to the field.
  *

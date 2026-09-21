@@ -6,9 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { string } from 'yup'
 import { addRule, addRules, addSchemas } from '../src/runtime/fields/register'
 import { defineFormDomain, toForm } from '../src/runtime/domain/define'
-import { mergeFields, refField, refFields } from '../src/runtime/fields/declare'
+import { defineFields, mergeFields, refField, refFields } from '../src/runtime/fields/declare'
 import { getFormRegistry } from '../src/runtime/domain/registry'
-import { defineStep } from '../src/runtime/steps/declare'
 import { refSteps } from '../src/runtime/steps/create'
 import { extendFormBindings } from '../src/runtime/engine/bindings'
 import { collectDomainFiles, findDomainFiles } from '../src/module'
@@ -539,17 +538,17 @@ describe('validating a subset', () => {
 
 describe('steps', () => {
   /** Declarations, so the same two build every wizard below sharing nothing. */
-  const identification = defineStep('identification', {
+  const identification = defineFields({
     name: { label: 'Name', value: '' },
     personType: { label: 'Person type', value: '' as PersonType },
   })
 
-  const location = defineStep('location', {
+  const location = defineFields({
     street: { label: 'Street', value: '' },
   })
 
   const buildWizard = () => {
-    const steps = refSteps([identification, location])
+    const steps = refSteps({ identification, location })
     addSchemas(steps.fields, {
       name: string().required('Name is required'),
       street: string().required('Street is required'),

@@ -3,20 +3,20 @@ import { ref } from 'vue'
 import { string } from 'yup'
 
 /**
- * A wizard declared inside the component. The steps are declarations — inert —
- * and `refSteps` is where the state appears: one fields tree out of all of
- * them, plus where in them we are.
+ * A wizard declared inside the component. The steps are declarations, keyed by
+ * the name each one answers to, and `refSteps` is where the state appears: one
+ * fields tree out of all of them, plus where in them we are.
  */
-const steps = refSteps([
-  defineStep('who', {
+const steps = refSteps({
+  who: {
     name: { label: 'Full name*', value: '', placeholder: 'Your full name' },
     email: { label: 'Email*', value: '', placeholder: 'you@example.com' },
-  }),
-  defineStep('where', {
+  },
+  where: {
     postcode: { label: 'Postcode*', value: '', placeholder: '00000-000' },
     city: { label: 'City*', value: '' },
-  }),
-])
+  },
+})
 
 /** One tree, so the validators are attached once, for the whole form. */
 addSchemas(steps.fields, {

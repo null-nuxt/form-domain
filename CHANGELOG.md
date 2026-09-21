@@ -13,12 +13,17 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   full run reads, so a subset cannot conclude something different from the
   submit. `validateField` is now that call with one key.
 
-- **`defineStep(name, fields)` and `refSteps([...])`**, for a form shown in
-  parts. Every step's declaration is merged into one tree, so a rule in the last
-  step reads a value from the first and the payload stays one projection;
-  `next()` validates the active step's keys and advances only if they pass,
-  `back()` and `goTo()` move backwards. A field key or a step name used twice
-  fails to compile, on the later step.
+- **`refSteps({ who, where })`**, for a form shown in parts. The steps are keyed
+  by name and every one's declaration is merged into a single tree, so a rule in
+  the last step reads a value from the first and the payload stays one
+  projection. `next()` validates the active step's keys and advances only if
+  they pass; `back()` and `goTo()` move backwards. A field key declared by two
+  steps fails to compile, and so does a step named with a number, which the
+  runtime would reorder.
+
+- **`defineFields({ ... })`**, for a declaration living in its own file: it
+  returns what it was given, and exists so the editor completes it and so a bad
+  option fails in that file rather than wherever the fragment is used.
 
 - **`mergeFields([a, b])`**, for composing declaration fragments into one flat
   declaration. Fragments are plain data, so they stay reusable at module scope,

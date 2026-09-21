@@ -292,13 +292,13 @@ const dynamicFragment: FieldsInput = { whatever: { label: 'X', value: '' } }
 mergeFields([customerFragment, dynamicFragment])
 
 /**
- * A wizard is one tree sliced by step: the names are a union, each step knows
- * its own keys, and the form sees all of them.
+ * A wizard is one tree sliced by step: the names are the record's keys, each
+ * step knows its own, and the form sees all of them.
  */
-const wizard = refSteps([
-  defineStep('identification', { fullName: { label: 'Name', value: '' } }),
-  defineStep('location', { street: { label: 'Street', value: '' } }),
-])
+const wizard = refSteps({
+  identification: { fullName: { label: 'Name', value: '' } },
+  location: { street: { label: 'Street', value: '' } },
+})
 
 const stepName: 'identification' | 'location' = wizard.current.value
 const identificationKeys: ReadonlyArray<'fullName'> = wizard.keysOf('identification')
@@ -315,19 +315,29 @@ void wizardForm.register('street')
 // @ts-expect-error a key no step declared
 void wizardForm.register('missing')
 
-/** A field key in two steps is the later step replacing the earlier one. */
-refSteps([
-  defineStep('one', { city: { label: 'City', value: '' } }),
-  // @ts-expect-error `city` was already declared by an earlier fragment
-  defineStep('two', { city: { label: 'Town', value: '' } }),
-])
+/**
+ * A field key in two steps means one of them is ignored: the tree is built
+ * once. A record has no order the types can read, so both are named.
+ */
+refSteps({
+  // @ts-expect-error `city` is declared by another step too
+  one: { city: { label: 'City', value: '' } },
+  // @ts-expect-error and the same, from the other side
+  two: { city: { label: 'Town', value: '' } },
+})
 
-/** And so is a step name used twice. */
-refSteps([
-  defineStep('same', { first: { label: 'First', value: '' } }),
-  // @ts-expect-error `same` is already the name of an earlier step
-  defineStep('same', { second: { label: 'Second', value: '' } }),
-])
+/** A number for a name would be reordered by the runtime, not by the author. */
+refSteps({
+  // @ts-expect-error a step named with a number
+  1: { first: { label: 'First', value: '' } },
+  second: { last: { label: 'Last', value: '' } },
+})
+
+/** A fragment in its own file fails in that file, not wherever it is used. */
+defineFields({
+  // @ts-expect-error the field holds a string; this option holds a number
+  quantity: { label: 'Quantity', value: '', options: [{ label: 'One', value: 1 }] },
+})
 
 /** A standalone field sits next to the declarations and keeps its precision. */
 const sharedCpf = refField({ label: 'CPF', value: '', meta: { mask: 'cpf' } })
