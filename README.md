@@ -563,6 +563,52 @@ A fragment whose keys aren't known — one typed as the wide `FieldsInput` — i
 refused too: the merged record would get an index signature, and from there
 `register('anything')` compiles.
 
+## Multi-step forms
+
+A wizard is one form shown in parts, not several forms. `defineStep` names a
+slice of the declaration; `refSteps` builds every slice into a single tree and
+returns the machine that walks it:
+
+```ts
+const steps = refSteps([
+  defineStep('who', { name: { label: 'Name', value: '' } }),
+  defineStep('where', { city: { label: 'City', value: '' } }),
+])
+
+addSchemas(steps.fields, { name: string().required(), city: string().required() })
+
+const { register } = toForm(steps.fields)
+const { names, current, activeKeys, isFirst, isLast, back, next } = steps
+```
+
+`next()` validates the active step's keys — through the same `shape` the submit
+reads — and advances only if they pass. The result comes back either way:
+what to show for a field that failed is the page's question, not the machine's.
+`back()` is free, and `goTo(name)` moves backwards only, so no step is skipped
+without having been asked whether it is valid.
+
+One tree is the whole point. Every step's fields land in the same record, so a
+rule in the last step reads a value from the first, `values` is complete at any
+moment, and the payload stays one projection instead of a join. What a step
+decides is which keys are shown together — that is `activeKeys`, typed, so the
+page renders the current step with a `v-for`:
+
+```vue
+<SimpleInput
+  v-for="key in activeKeys"
+  :key="key"
+  v-bind="register(key)"
+/>
+```
+
+The declarations go through the same check `mergeFields` does, because that is
+what happens to them: a field key declared by two steps is a compile error on
+the later one, and so is a step name used twice.
+
+The prefixes mean what the table above says. `defineStep` declares data and can
+live at module scope beside the fragments it is made of; `refSteps` is where the
+state appears, which is why it belongs inside a setup.
+
 ## What the compiler guarantees
 
 | Error | When it surfaces |
@@ -572,6 +618,8 @@ refused too: the merged record would get an index signature, and from there
 | `register()` reading an extra the field never declared | **compile time** |
 | an option whose value doesn't match the field's | **compile time** |
 | two fragments declaring the same field | **compile time** |
+| two steps declaring the same field, or the same name | **compile time** |
+| `goTo()` naming a step that doesn't exist | **compile time** |
 | `deriveOptions` on a field that declared no options | **compile time** |
 | reading `options`/`selected` on a field that isn't a choice | **compile time** |
 | `useFormDomain('unknown-slug')` | **compile time** |
@@ -585,6 +633,8 @@ refused too: the merged record would get an index signature, and from there
 refField({ label, value })        // one field, reusable across domains
 refFields({ name: { ... } })      // the form's fields, named
 mergeFields([a, b])               // declaration fragments into one
+defineStep(name, { ... })         // one step's slice of the declaration
+refSteps([stepA, stepB])          // one tree, plus where in it we are
 
 addRule(field, rule)           // behaviour for one field
 addRules(fields, { ... })      // for several, keyed

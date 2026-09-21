@@ -291,6 +291,44 @@ const dynamicFragment: FieldsInput = { whatever: { label: 'X', value: '' } }
 // @ts-expect-error this fragment's keys are not known here
 mergeFields([customerFragment, dynamicFragment])
 
+/**
+ * A wizard is one tree sliced by step: the names are a union, each step knows
+ * its own keys, and the form sees all of them.
+ */
+const wizard = refSteps([
+  defineStep('identification', { fullName: { label: 'Name', value: '' } }),
+  defineStep('location', { street: { label: 'Street', value: '' } }),
+])
+
+const stepName: 'identification' | 'location' = wizard.current.value
+const identificationKeys: ReadonlyArray<'fullName'> = wizard.keysOf('identification')
+void stepName
+void identificationKeys
+
+// @ts-expect-error there is no such step
+wizard.goTo('payment')
+
+const wizardForm = toForm(wizard.fields)
+void wizardForm.register('fullName')
+void wizardForm.register('street')
+
+// @ts-expect-error a key no step declared
+void wizardForm.register('missing')
+
+/** A field key in two steps is the later step replacing the earlier one. */
+refSteps([
+  defineStep('one', { city: { label: 'City', value: '' } }),
+  // @ts-expect-error `city` was already declared by an earlier fragment
+  defineStep('two', { city: { label: 'Town', value: '' } }),
+])
+
+/** And so is a step name used twice. */
+refSteps([
+  defineStep('same', { first: { label: 'First', value: '' } }),
+  // @ts-expect-error `same` is already the name of an earlier step
+  defineStep('same', { second: { label: 'Second', value: '' } }),
+])
+
 /** A standalone field sits next to the declarations and keeps its precision. */
 const sharedCpf = refField({ label: 'CPF', value: '', meta: { mask: 'cpf' } })
 const withStandalone = toForm(refFields({ cpf: sharedCpf, name: { label: 'Name', value: '' } }))

@@ -199,7 +199,13 @@ export type CheckedFields<T> = {
     : T[K]
 }
 
-export type BuiltFields<T extends FieldsInput> = {
+/**
+ * No constraint on `T`: a declaration merged inside a generic — a wizard's
+ * steps, say — is a conditional type TypeScript cannot yet prove is a
+ * `FieldsInput`, and the body here never needed the proof. What is passed is
+ * still checked where it is built.
+ */
+export type BuiltFields<T> = {
   [K in keyof T]: FieldObj<
     ValueOfSource<T[K]>,
     { [K2 in keyof T]: ValueOfSource<T[K2]> },
@@ -224,7 +230,7 @@ export type BuiltFields<T extends FieldsInput> = {
  * The offending fragment is what collapses, the same double defence
  * `CheckedFields` uses, so the error lands on it rather than on the whole call.
  */
-type CheckedFragment<T, Seen> = string extends keyof T
+export type CheckedFragment<T, Seen> = string extends keyof T
   ? { __fieldKeysNotKnown: 'this fragment\'s keys are not known here, so the merged fields would accept any key — pass a concrete declaration' }
   : [keyof T & Seen] extends [never]
       ? T

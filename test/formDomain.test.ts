@@ -8,6 +8,8 @@ import { addRule, addRules, addSchemas } from '../src/runtime/fields/register'
 import { defineFormDomain, toForm } from '../src/runtime/domain/define'
 import { mergeFields, refField, refFields } from '../src/runtime/fields/declare'
 import { getFormRegistry } from '../src/runtime/domain/registry'
+import { defineStep } from '../src/runtime/steps/declare'
+import { refSteps } from '../src/runtime/steps/create'
 import { extendFormBindings } from '../src/runtime/engine/bindings'
 import { collectDomainFiles, findDomainFiles } from '../src/module'
 
@@ -532,6 +534,90 @@ describe('validating a subset', () => {
     const [subset, single] = await Promise.all([form.validate(['cpf']), form.validateField('cpf')])
 
     expect(single).toEqual({ valid: subset.valid, errors: subset.errors.cpf ?? [] })
+  })
+})
+
+describe('steps', () => {
+  /** Declarations, so the same two build every wizard below sharing nothing. */
+  const identification = defineStep('identification', {
+    name: { label: 'Name', value: '' },
+    personType: { label: 'Person type', value: '' as PersonType },
+  })
+
+  const location = defineStep('location', {
+    street: { label: 'Street', value: '' },
+  })
+
+  const buildWizard = () => {
+    const steps = refSteps([identification, location])
+    addSchemas(steps.fields, {
+      name: string().required('Name is required'),
+      street: string().required('Street is required'),
+    })
+
+    return steps
+  }
+
+  it('builds one tree out of every step', () => {
+    const form = toForm(buildWizard().fields)
+
+    expect(Object.keys(form.values.value)).toEqual(['name', 'personType', 'street'])
+  })
+
+  it('starts on the first step, knowing which keys it shows', () => {
+    const steps = buildWizard()
+
+    expect(steps.current.value).toBe('identification')
+    expect(steps.isFirst.value).toBe(true)
+    expect(steps.isLast.value).toBe(false)
+    expect(steps.activeKeys.value).toEqual(['name', 'personType'])
+  })
+
+  it('refuses to advance while the active step is invalid', async () => {
+    const steps = buildWizard()
+
+    const result = await steps.next()
+
+    expect(result.valid).toBe(false)
+    expect(result.firstErrors.name).toBe('Name is required')
+    expect(steps.current.value).toBe('identification')
+  })
+
+  /** A later step's validator is not this step's problem. */
+  it('advances on what the active step asks for, and nothing else', async () => {
+    const steps = buildWizard()
+    steps.fields.name.value = 'Ana'
+
+    expect((await steps.next()).valid).toBe(true)
+    expect(steps.current.value).toBe('location')
+    expect(steps.isLast.value).toBe(true)
+  })
+
+  it('goes back freely, and forward only through next', async () => {
+    const steps = buildWizard()
+    steps.fields.name.value = 'Ana'
+    await steps.next()
+
+    steps.back()
+    expect(steps.current.value).toBe('identification')
+
+    steps.goTo('location')
+    expect(steps.current.value).toBe('identification')
+  })
+
+  /**
+   * One tree is what this buys: a rule declared for a field in the second step
+   * reads a value from the first, and hiding it makes the step pass.
+   */
+  it('a rule in one step reads what another step holds', async () => {
+    const steps = buildWizard()
+    addRule(steps.fields.street, { canShow: () => steps.fields.personType.value === 'PJ' })
+
+    steps.fields.name.value = 'Ana'
+    await steps.next()
+
+    expect(steps.current.value).toBe('location')
+    expect((await steps.next()).valid).toBe(true)
   })
 })
 
