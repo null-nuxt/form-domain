@@ -7,6 +7,22 @@ Schema-library agnostic: anything implementing
 [Standard Schema](https://standardschema.dev) works — Zod, Valibot, ArkType,
 yup 1.7+.
 
+**Start** · [Installation](#installation) · [A form inside a component](#a-form-inside-a-component) · [A shared domain](#a-shared-domain)
+
+**Why it looks like this** · [Why a setup and not a builder](#why-a-setup-and-not-a-builder) · [The names](#the-names-and-what-each-prefix-promises) · [Registration takes its target](#registration-takes-its-target)
+
+**Declaring** · [Rules](#rules) · [Validation](#validation) · [`meta`](#meta-what-the-project-carries-on-a-field) · [Composing fragments](#composing-fragments) · [Module scope and SSR](#fields-at-module-scope-leak-under-ssr)
+
+**Rendering** · [`register()`](#register-builds-the-input-props) · [Extending it](#extending-register) · [Choices](#only-declared-choices-are-choices) · [The option's label](#the-options-label)
+
+**Sending** · [`payload`](#payload-what-leaves-for-the-backend) · [The attempt: `useFormSession`](#the-attempt-useformsession)
+
+**Several screens** · [Multi-step forms](#multi-step-forms)
+
+**Around the form** · [Catalog](#catalog) · [Two ways in](#two-ways-in-and-which-is-for-what) · [Scaling up](#scaling-up)
+
+**Reference** · [What the compiler guarantees](#what-the-compiler-guarantees) · [API](#api) · [Development](#development)
+
 ## Installation
 
 ```bash
@@ -45,7 +61,7 @@ at the end:
 <script setup lang="ts">
 import { object, string } from 'yup'
 
-const campos = refFields({
+const fields = refFields({
   name: { label: 'Full name', value: '' },
   personType: {
     label: 'Type',
@@ -58,17 +74,17 @@ const campos = refFields({
   ein: { label: 'Company number', value: '' },
 })
 
-const isCompany = computed(() => campos.personType.value === 'company')
+const isCompany = computed(() => fields.personType.value === 'company')
 
-addRule(campos.ein, { canShow: () => isCompany.value, clearWhenHidden: true })
+addRule(fields.ein, { canShow: () => isCompany.value, clearWhenHidden: true })
 
-addSchemas(campos, {
+addSchemas(fields, {
   name: string().required(),
   personType: string().required(),
   ein: string().required(),
 })
 
-const { register, canShow, values, composeSchema } = toForm(campos)
+const { register, canShow, values, composeSchema } = toForm(fields)
 const schema = composeSchema(object)
 </script>
 
@@ -94,22 +110,22 @@ export const metadata = {
 }
 
 export default defineFormDomain('federal-court', metadata, () => {
-  const campos = createFields()
+  const fields = refFields(declaration)
 
-  documento(campos)   // one file per block
-  regiao(campos)
+  document(fields)   // one file per block
+  region(fields)
 
-  const isPF = computed(() => campos.tipoPessoa.value === 'PF')
+  const isIndividual = computed(() => fields.personType.value === 'individual')
 
   return {
-    fields: campos,
-    isPF,
-    price: computed(() => isPF.value ? 59.9 : 89.9),
+    fields,
+    isIndividual,
+    price: computed(() => isIndividual.value ? 59.9 : 89.9),
   }
 })
   .payload(ctx => ({
     ...ctx.visible,
-    region_label: ctx.fields.regiao.selected?.label ?? '',
+    region_label: ctx.fields.region.selected?.label ?? '',
     price: ctx.price.value,
   }))
 ```
@@ -158,8 +174,8 @@ derivation, and `add` says so without borrowing anyone's meaning.
 ## Registration takes its target
 
 ```ts
-addRule(campos.ein, { canShow: () => isCompany.value })
-addRules(campos, { ein: { canShow: () => isCompany.value } })
+addRule(fields.ein, { canShow: () => isCompany.value })
+addRules(fields, { ein: { canShow: () => isCompany.value } })
 ```
 
 The field is the argument, so nothing needs to know which form is "current".
@@ -195,10 +211,10 @@ can't overwrite newer input.
 One validator per field, not a composed schema:
 
 ```ts
-addSchemas(campos, {
+addSchemas(fields, {
   name: string().required('Name is required'),
   // a getter when it depends on the form's state
-  regiao: () => string().oneOf(valoresValidos(campos)).required(),
+  region: () => string().oneOf(validValues(fields)).required(),
 })
 ```
 
@@ -404,12 +420,12 @@ The field stores **only the value**. For the human-readable text, read it off
 the field:
 
 ```ts
-form.values.value.regiao        // 'first'
-form.selected.value.regiao?.label // 'First Region'
+form.values.value.region        // 'first'
+form.selected.value.region?.label // 'First Region'
 ```
 
 Inside a setup you can read it off the field you declared —
-`campos.regiao.selected` — since that's your own variable. From outside, go
+`fields.region.selected` — since that's your own variable. From outside, go
 through `selected`: reaching it was the only reason a consumer needed the raw
 fields, and two ways to the same value is one too many.
 
@@ -422,7 +438,7 @@ identity, break `oneOf`, and send an object where the API expects a scalar.
 ```ts
 .payload(ctx => ({
   ...ctx.visible,
-  region_label: ctx.fields.regiao.selected?.label ?? '',
+  region_label: ctx.fields.region.selected?.label ?? '',
   price: ctx.price.value,
 }))
 ```
@@ -560,16 +576,16 @@ rules". `addRules` and `addSchemas` are callable as many times as you like, so
 one file owns its block's rule *and* its validation:
 
 ```ts
-// sections/documento.ts
-export function documento(campos: Campos) {
-  addRules(campos, { cpf: { canShow: () => isPF(campos), clearWhenHidden: true } })
-  addSchemas(campos, { cpf: string().required() })
+// sections/document.ts
+export function document(fields: Fields) {
+  addRules(fields, { cpf: { canShow: () => isIndividual(fields), clearWhenHidden: true } })
+  addSchemas(fields, { cpf: string().required() })
 }
 ```
 
 `fields` and anything derived stay central, because they are what the sections
-share. What crosses a file boundary is `Campos = ReturnType<typeof createFields>`
-— a type from your own factory, not from this package.
+share. What crosses a file boundary is `Fields = BuiltFields<typeof declaration>`
+— a type read off your own declaration, not one this package hands you.
 
 ## Fields at module scope leak under SSR
 
@@ -581,15 +597,15 @@ than the built fields:
 
 ```ts
 // fields.ts — plain data, safe at module scope
-export const declaracao = {
-  tipoPessoa: { label: 'Type', value: '' as Pessoa },
+export const declaration = {
+  personType: { label: 'Type', value: '' as PersonType },
   cpf: { label: 'CPF', value: '', meta: { mask: 'cpf' } },
 }
 
-export type Campos = BuiltFields<typeof declaracao>
+export type Fields = BuiltFields<typeof declaration>
 
 // index.ts — built inside the setup, once per request
-const campos = refFields(declaracao)
+const fields = refFields(declaration)
 ```
 
 What sits at module scope is an inert object. There is no reactive state, so
@@ -865,7 +881,9 @@ vocabulary all three share.
 The playground has `domain-guard` and `catalog-guard` pages whose type errors
 are **expected**, asserted with `@ts-expect-error`. If a guarantee regresses the
 directive goes unused and typecheck fails, instead of the breakage reaching a
-project.
+project. What the types cannot see is asserted in `test/`, one file per layer —
+`fields`, `engine`, `validation`, `bindings`, `domain`, `steps`, `session`,
+`module` — with the shared fixture in `test/support`.
 
 ## License
 
