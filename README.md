@@ -26,7 +26,7 @@ yup 1.7+.
 ## Installation
 
 ```bash
-pnpm add "github:null-nuxt/form-domain#v0.1.0"
+pnpm add "github:null-nuxt/form-domain#v0.2.0"
 ```
 
 Pin a tag for reproducible installs. Dropping it resolves to whatever `main`

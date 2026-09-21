@@ -6,6 +6,24 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+Nothing yet.
+
+## 0.2.0 — 2026-09-21
+
+0.1.0 was the module as it arrived from the monorepo. This is the first release
+written here, and it is mostly about the two things a form does that the engine
+had no answer for: being shown in parts, and being sent.
+
+Steps are the first. A wizard is one tree sliced by name, not several forms, so
+a rule in the last step still reads the first one's value and the payload stays
+one projection. What a step needs beyond that — skipping one that doesn't apply,
+reopening where the user left off, saving each one as it is approved — follows
+from the same place rather than from a second mechanism.
+
+Sending is the second, and it drew a line: the form answers what is true of the
+fields, the session remembers what was tried. Nothing in it writes back into the
+engine, and nothing in it invents a second `register()`.
+
 ### Added
 
 - **`form.validate(keys)`** takes an optional list of keys, for validating part

@@ -1,6 +1,6 @@
 {
   "name": "@null-nuxt/form-domain",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A form declared as a setup function — fields, rules, validation and payload — consumed through composables, in the style of defineStore.",
   "author": "Miguel Siqueira Reis <miguel.siqueira.reis@gmail.com>",
   "license": "MIT",
