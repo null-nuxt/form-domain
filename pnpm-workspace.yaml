@@ -1,0 +1,5 @@
+# settings only: this repository holds a single package, and pnpm reads its
+# configuration from here since v10
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true

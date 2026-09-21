@@ -1,0 +1,75 @@
+{
+  "name": "@null-nuxt/form-domain",
+  "version": "0.1.0",
+  "description": "A form declared as a setup function — fields, rules, validation and payload — consumed through composables, in the style of defineStore.",
+  "author": "Miguel Siqueira Reis <miguel.siqueira.reis@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/null-nuxt/form-domain#readme",
+  "keywords": [
+    "nuxt",
+    "nuxt-module",
+    "vue",
+    "forms",
+    "validation",
+    "standard-schema",
+    "zod",
+    "valibot",
+    "yup"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/null-nuxt/form-domain.git"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "type": "module",
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/module.mjs",
+  "types": "./dist/types.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.mts",
+      "import": "./dist/module.mjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prepack": "nuxt-module-build build",
+    "prepare": "nuxt-module-build build",
+    "dev": "nuxi dev playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxi prepare playground",
+    "bootstrap": "pnpm dev:prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && pnpm typecheck:playground",
+    "typecheck:playground": "cd playground && vue-tsc --build --force",
+    "test": "vitest run",
+    "build": "pnpm prepack"
+  },
+  "dependencies": {
+    "@nuxt/kit": "^3.17.0 || ^4.0.0",
+    "@nuxt/schema": "^3.17.0 || ^4.0.0",
+    "@standard-schema/spec": "^1.1.0"
+  },
+  "peerDependencies": {
+    "nuxt": ">=3.13.0"
+  },
+  "devDependencies": {
+    "@nuxt/eslint-config": "^1.9.0",
+    "@nuxt/module-builder": "^1.0.1",
+    "@types/node": "^26.1.2",
+    "eslint": "^9.30.0",
+    "nuxt": "^4.4.8",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10",
+    "vue": "^3.5.31",
+    "vue-tsc": "^3.3.8",
+    "yup": "^1.7.1"
+  }
+}
