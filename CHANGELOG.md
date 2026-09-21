@@ -45,6 +45,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A step rule attached after something had already read `canShow` is seen.**
+  The step conditions lived in a plain `Map`, so a rule added inside a branch,
+  or by a composable the setup calls later, left the navigation stale. A field's
+  rule lands on a reactive field and got this for free; the map had to ask.
+
 - **The guard against shared state follows the field, not the record.** It
   marked the fields object, so two records holding the same built field — which
   is what composing fragments makes easy — drove two forms with one piece of

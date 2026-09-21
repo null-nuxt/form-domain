@@ -605,6 +605,33 @@ describe('steps', () => {
     expect(steps.current.value).toBe('identification')
   })
 
+  /** Attaching is not always done before the first read. */
+  it('reaches a canShow something has already computed', () => {
+    const steps = buildWizard()
+    expect(steps.visibleNames.value).toEqual(['identification', 'location'])
+
+    addStepRules(steps, { location: { canShow: () => false } })
+
+    expect(steps.visibleNames.value).toEqual(['identification'])
+  })
+
+  /** A skipped step hides its fields, so `clearWhenHidden` applies to them too. */
+  it('clears a field asking for it when its step is skipped', async () => {
+    const steps = buildWizard()
+    addRule(steps.fields.street, { clearWhenHidden: true })
+    addStepRules(steps, { location: { canShow: () => steps.fields.personType.value === 'PJ' } })
+
+    steps.fields.personType.value = 'PJ'
+    toForm(steps.fields)
+    await nextTick()
+
+    steps.fields.street.value = 'Rua A'
+    steps.fields.personType.value = 'PF'
+    await nextTick()
+
+    expect(steps.fields.street.value).toBe('')
+  })
+
   /**
    * Reopening where the user left off: the position comes from outside — a URL,
    * a saved draft — and is walked to rather than jumped to.

@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, shallowReactive } from 'vue'
 import { refFields } from '../fields/declare'
 import { shapeOf, validateShape } from '../engine/validate'
 import { isVisible } from '../engine/visibility'
@@ -146,8 +146,15 @@ export const refSteps = <T extends StepsInput>(
   const names = Object.keys(declared) as ReadonlyArray<keyof T & string>
   const keys = new Map(Object.entries(declared).map(([name, slice]) => [name, Object.keys(slice)]))
 
-  /** Filled by `addStepRules`. Empty means every step applies. */
-  const conditions = new Map<string, () => boolean>()
+  /**
+   * Filled by `addStepRules`. Empty means every step applies.
+   *
+   * Reactive, because attaching is not always done before the first read: a
+   * rule added inside a branch, or in a composable the setup calls later, has
+   * to reach a `canShow` that something already computed. A field's rule lands
+   * on a reactive field and gets this for free; this map had to ask.
+   */
+  const conditions = shallowReactive(new Map<string, () => boolean>())
 
   const canShow = computed(() => {
     const result = {} as Record<keyof T & string, boolean>
