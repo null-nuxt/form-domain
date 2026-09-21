@@ -58,6 +58,18 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   — a rule from one fragment can patch a key from another. A key declared twice
   fails to compile, on the fragment doing the overriding.
 
+### Changed
+
+- **An extender is written as a plain object.** A key it returns as `undefined`
+  is left out, instead of being copied over as an undefined value, so the common
+  extender stops being a spread of conditionals. It means "nothing to add for
+  this field", not "remove what the engine put there".
+
+- **`CustomFieldBindings` is no longer generic** over the form and the key.
+  TypeScript requires an augmentation to repeat a type parameter list exactly,
+  so every project paid for two generics, an import and a lint exception in
+  order to type keys that in practice are flat.
+
 ### Fixed
 
 - **A step rule attached after something had already read `canShow` is seen.**

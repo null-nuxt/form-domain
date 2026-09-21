@@ -302,23 +302,30 @@ registry, so a plugin re-running doesn't stack copies:
 ```ts
 // plugins/form-bindings.ts
 export default defineNuxtPlugin(() => {
-  extendFormBindings((field, { key }) =>
-    field.meta?.mask ? { mask: field.meta.mask } : undefined,
-  )
+  extendFormBindings(field => ({
+    mask: field.meta?.mask,
+    errorMessage: field.error,
+  }))
 })
-```
 
-That is the runtime half. For `register()` to be **typed** with the new key,
-augment `CustomFieldBindings` — generic over the form and the key, the way
-Pinia's `PiniaCustomProperties` is, so a key can depend on the field:
-
-```ts
 declare module '#forms' {
-  interface CustomFieldBindings<F extends AnyFields, K extends keyof F> {
+  interface CustomFieldBindings {
     mask?: string
+    errorMessage?: string
   }
 }
 ```
+
+A key whose value is `undefined` is left out: the extender had nothing to add
+for that field, which is what lets it be written as the plain object it is
+rather than a spread of conditionals. It does not mean "remove" — a default the
+engine already put there stays.
+
+The augmentation is the other half, and it is not generic over the form and the
+key. It was, so that an added key could depend on the field it was for; but
+TypeScript requires an augmentation to repeat a type parameter list exactly, so
+every project paid for two generics, an import and a lint exception to type keys
+that in practice are flat.
 
 An extender may add keys or override a default one — `label`, `placeholder`,
 `options` (a translated `label`, say). It can't touch the v-model contract:

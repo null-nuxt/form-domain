@@ -108,22 +108,26 @@ interface FieldExtras {
 }
 
 /**
- * Keys a project adds to `register()`, typed per field. Empty here; augment it
- * alongside an `extendFormBindings` extender:
+ * Keys a project adds to `register()`. Empty here; augment it alongside an
+ * `extendFormBindings` extender:
  *
  * ```ts
  * declare module '#forms' {
- *   interface CustomFieldBindings<F extends AnyFields, K extends keyof F> {
- *     mask?: MaskOptions
+ *   interface CustomFieldBindings {
+ *     mask?: string
  *   }
  * }
  * ```
  *
- * Generic over the form and the key, the way `PiniaCustomProperties` is, so an
- * added key can depend on the field — `MetaOf<F, K>` reads what it declared.
+ * Deliberately not generic over the form and the key. It was, so that an added
+ * key could depend on the field it was for — but TypeScript requires an
+ * augmentation to repeat the type parameters exactly, so every project paid for
+ * the two generics, the import they need and the lint exception, to type keys
+ * that in practice are flat. `MetaOf` is still exported for a project that
+ * wants to read a declaration in a type of its own.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-object-type
-export interface CustomFieldBindings<F extends AnyFields, K extends keyof F> {}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface CustomFieldBindings {}
 
 /** What a field declared in `meta`, or `undefined` if it declared none. */
 export type MetaOf<F extends AnyFields, K extends keyof F> = F[K]['meta']
@@ -176,7 +180,7 @@ export type FieldBindings<F extends AnyFields, K extends keyof F & string> = Pre
    * Minus the v-model contract: the engine sets those last, so an augmentation
    * declaring them would type a key the component never actually receives.
    */
-  & Omit<CustomFieldBindings<F, K>, ContractKey>
+  & Omit<CustomFieldBindings, ContractKey>
 >
 
 /** Everything the engine derives from a fields object. */

@@ -188,8 +188,20 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
         ...(target.placeholder ? { placeholder: target.placeholder } : {}),
       }
 
-      // the project's own keys: an extender may add keys or override the defaults above
-      for (const extend of extenders) Object.assign(bindings, extend(target, { key }))
+      /**
+       * The project's own keys: an extender may add keys or override the
+       * defaults above. `undefined` means it had nothing to add for this field,
+       * not that a default should go away — which is what lets an extender be
+       * written as a plain object instead of a spread of conditionals.
+       */
+      for (const extend of extenders) {
+        const added = extend(target, { key })
+        if (!added) continue
+
+        for (const [prop, value] of Object.entries(added)) {
+          if (value !== undefined) bindings[prop] = value
+        }
+      }
 
       warnIfContractOverridden(key, bindings)
 

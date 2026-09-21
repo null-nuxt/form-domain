@@ -282,6 +282,24 @@ describe('extendFormBindings', () => {
     expect(form.register('cpf')).not.toHaveProperty('extra')
   })
 
+  /** `undefined` is "nothing to add", so an extender can be the plain object it is. */
+  it('leaves out the keys an extender had nothing for', () => {
+    const remove = extendFormBindings(field => ({ mask: field.meta?.mask }))
+
+    try {
+      const form = toForm(refFields({
+        cpf: { label: 'CPF', value: '', meta: { mask: 'cpf' } },
+        name: { label: 'Name', value: '' },
+      }))
+
+      expect(form.register('cpf')).toMatchObject({ mask: 'cpf' })
+      expect(form.register('name')).not.toHaveProperty('mask')
+    }
+    finally {
+      remove()
+    }
+  })
+
   /** markRaw is fine on a value the project already marked itself. */
   it('keeps a meta the project had already marked raw', () => {
     const meta = markRaw({ mask: 'cpf' })
