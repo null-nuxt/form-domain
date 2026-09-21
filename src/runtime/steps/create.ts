@@ -90,8 +90,13 @@ export interface StepsController<T extends StepsInput> {
    * Validates the active step and moves on only if it passes. The result comes
    * back either way: what to show for a field that failed is the session's
    * question, not the machine's.
+   *
+   * `gate` is anything else that has to succeed first — saving the step to a
+   * server, a confirmation, a check the types can't do. It runs only after the
+   * step validated, and returning `false` keeps the wizard where it is. What it
+   * does is none of the machine's business; whether it agreed is.
    */
-  next: () => Promise<ValidationResult<StepValues<T>>>
+  next: (gate?: () => boolean | Promise<boolean>) => Promise<ValidationResult<StepValues<T>>>
   back: () => void
   /**
    * Backwards only, and only to a step that applies. Forward goes through
@@ -182,14 +187,18 @@ export const refSteps = <T extends StepsInput>(
 
   const index = computed(() => visibleNames.value.indexOf(current.value))
 
-  const next = async () => {
+  const next = async (gate?: () => boolean | Promise<boolean>) => {
     const result = await validateShape(
       shapeOf(fields as AnyFields, keys.get(current.value) ?? []),
       fields as AnyFields,
     )
 
+    if (!result.valid) return result as ValidationResult<StepValues<T>>
+    if (gate && await gate() === false) return result as ValidationResult<StepValues<T>>
+
+    // read after the gate: it may have changed what applies, or what is ahead
     const ahead = visibleNames.value[index.value + 1]
-    if (result.valid && ahead) wanted.value = ahead
+    if (ahead) wanted.value = ahead
 
     return result as ValidationResult<StepValues<T>>
   }

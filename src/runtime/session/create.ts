@@ -47,7 +47,14 @@ type PayloadOf<Form> = Form extends { payload: ComputedRef<infer P> }
 interface StepsTarget {
   current: ComputedRef<string>
   keysOf(name: never): readonly string[]
-  next(): Promise<ValidationResult<unknown>>
+  next(gate?: () => boolean | Promise<boolean>): Promise<ValidationResult<unknown>>
+}
+
+/** The step that is being left, and what it holds. */
+interface StepContext<Form> {
+  step: Form extends { steps: { names: ReadonlyArray<infer TName> } } ? TName : string
+  /** Only the keys that step declared. */
+  values: Partial<PayloadOf<Form>>
 }
 
 /** A wizard's `next` is part of the session only when the form has steps. */
@@ -56,8 +63,15 @@ type StepHandling<Form> = Form extends { steps: StepsTarget }
       /**
        * Validates the active step, remembers what failed, and advances if it
        * passed. Answers whether it moved.
+       *
+       * The handler is what has to succeed before leaving — saving the step to
+       * a server, most of the time. It runs only after the step validated, gets
+       * that step's values, and keeps the wizard where it is by returning
+       * `false`, having said why through `setErrors`. Throwing keeps it there
+       * too, and the throw is yours: a network that fell over is not a form
+       * outcome.
        */
-      next: () => Promise<boolean>
+      next: (handler?: (context: StepContext<Form>) => unknown) => Promise<boolean>
     }
   : object
 
@@ -198,14 +212,34 @@ export function useFormSession<Form extends SessionTarget>(form: Form): FormSess
 
   const steps = (form as { steps?: StepsTarget }).steps
 
-  const next = async () => {
-    if (!steps) return false
+  const next = async (handler?: (context: { step: never, values: never }) => unknown) => {
+    // a second click while the first step is still being saved is the same click
+    if (!steps || submitting.value) return false
 
     const leaving = steps.current.value
+    const stepKeys = steps.keysOf(leaving as never)
     attempts.value += 1
 
-    const result = await steps.next()
-    rememberResult(result, steps.keysOf(leaving as never))
+    const gate = handler && (async () => {
+      submitting.value = true
+
+      try {
+        const values = Object.fromEntries(stepKeys.map(key => [key, fields[key]?.value]))
+        return await handler({ step: leaving, values } as never) !== false
+      }
+      finally {
+        submitting.value = false
+      }
+    })
+
+    const result = await steps.next(gate)
+
+    /**
+     * Only on failure: a handler that refused has already said why through
+     * `setErrors`, and the step passed its own validation, so remembering that
+     * result would wipe exactly the message the server just sent.
+     */
+    if (!result.valid) rememberResult(result, stepKeys)
 
     return steps.current.value !== leaving
   }
@@ -222,5 +256,6 @@ export function useFormSession<Form extends SessionTarget>(form: Form): FormSess
     clearErrors: () => remembered.clear(),
     submit,
     next,
-  } as FormSession<Form>
+    // assembled loosely; FormSession is the contract it is typed against
+  } as unknown as FormSession<Form>
 }

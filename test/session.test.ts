@@ -135,9 +135,10 @@ describe('useFormSession', () => {
     expect(session.isSubmitting.value).toBe(false)
   })
 
-  /** A wizard's step is an attempt too, so `next` feeds the same memory. */
-  it('next shows what the step refused, and moves on when it passes', async () => {
-    const domain = defineFormDomain('session-wizard', () => {
+  const buildWizard = (id: string) => {
+    getFormRegistry().delete(id)
+
+    const domain = defineFormDomain(id, () => {
       const steps = refSteps({
         who: { name: { label: 'Name', value: '' } },
         where: { city: { label: 'City', value: '' } },
@@ -151,7 +152,12 @@ describe('useFormSession', () => {
       return { fields: steps.fields, steps }
     })
 
-    const form = domain()
+    return domain()
+  }
+
+  /** A wizard's step is an attempt too, so `next` feeds the same memory. */
+  it('next shows what the step refused, and moves on when it passes', async () => {
+    const form = buildWizard('session-wizard')
     const session = useFormSession(form)
 
     expect(await session.next()).toBe(false)
@@ -164,8 +170,92 @@ describe('useFormSession', () => {
 
     expect(await session.next()).toBe(true)
     expect(form.steps.current.value).toBe('where')
+  })
 
-    getFormRegistry().delete('session-wizard')
+  /**
+   * Saving each approved step. The handler is a gate, not a side effect: it
+   * runs after the step validated and before the wizard moves, and it can say
+   * no.
+   */
+  it('saves the step before moving on, with that step\'s values', async () => {
+    const form = buildWizard('session-save')
+    const session = useFormSession(form)
+    const saved = vi.fn()
+
+    form.set({ name: 'Ana' })
+    await settle()
+
+    expect(await session.next(saved)).toBe(true)
+    expect(saved).toHaveBeenCalledWith({ step: 'who', values: { name: 'Ana' } })
+    expect(form.steps.current.value).toBe('where')
+  })
+
+  it('does not reach the handler when the step itself is invalid', async () => {
+    const form = buildWizard('session-save-invalid')
+    const session = useFormSession(form)
+    const saved = vi.fn()
+
+    expect(await session.next(saved)).toBe(false)
+    expect(saved).not.toHaveBeenCalled()
+  })
+
+  it('stays where it is when the handler refuses, showing what it said', async () => {
+    const form = buildWizard('session-refused')
+    const session = useFormSession(form)
+
+    form.set({ name: 'Ana' })
+    await settle()
+
+    const saved = vi.fn(() => {
+      session.setErrors({ name: 'already registered' })
+      return false
+    })
+
+    expect(await session.next(saved)).toBe(false)
+    expect(form.steps.current.value).toBe('who')
+    await nextTick()
+    expect(session.errorOf('name')).toBe('already registered')
+  })
+
+  /** A network that fell over is not a form outcome, so the throw is the caller's. */
+  it('stays where it is when the handler throws, and stops submitting', async () => {
+    const form = buildWizard('session-threw')
+    const session = useFormSession(form)
+
+    form.set({ name: 'Ana' })
+    await settle()
+
+    await expect(session.next(() => Promise.reject(new Error('offline')))).rejects.toThrow('offline')
+
+    expect(form.steps.current.value).toBe('who')
+    expect(session.isSubmitting.value).toBe(false)
+  })
+
+  it('is submitting while the step is being saved', async () => {
+    const form = buildWizard('session-inflight')
+    const session = useFormSession(form)
+
+    form.set({ name: 'Ana' })
+    await settle()
+
+    let release = () => {}
+    const saved = vi.fn(() => new Promise<void>((resolve) => {
+      release = resolve
+    }))
+
+    const moving = session.next(saved)
+    await settle()
+    expect(session.isSubmitting.value).toBe(true)
+
+    // and a second click while it is in flight is the same click
+    expect(await session.next(saved)).toBe(false)
+    expect(saved).toHaveBeenCalledOnce()
+
+    release()
+    await moving
+
+    expect(session.isSubmitting.value).toBe(false)
+    expect(form.steps.current.value).toBe('where')
   })
 
   /** What isn't validated cannot be wrong: a hidden field has nothing to show. */

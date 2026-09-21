@@ -36,6 +36,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   steps fails to compile, and so does a step named with a number, which the
   runtime would reorder.
 
+- **A gate before a step is left**: `steps.next(gate)` runs it once the step has
+  validated and stays put if it returns `false`, and `session.next(handler)`
+  fills it in with that step's values and the step name — for a wizard that
+  saves each approved step to the server, and for a server that can still
+  refuse it.
+
 - **`steps.resume(name)` and `steps.isStepName(value)`**, for reopening a wizard
   where it was left — a URL fragment, a saved draft. `resume` repeats `next()`
   rather than jumping, so it stops at the first step the data does not support;

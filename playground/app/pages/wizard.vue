@@ -82,8 +82,18 @@ onMounted(() => {
   if (steps.isStepName(fromHash)) void steps.resume(fromHash)
 })
 
-/** The session validates the step, remembers what it refused, and moves if it passed. */
-const advance = () => session.next()
+/**
+ * Each approved step is saved before the wizard moves — a gate, not a side
+ * effect: it runs after the step validated, and the server can still say no.
+ */
+const advance = () => session.next(async ({ step, values }) => {
+  await new Promise(resolve => setTimeout(resolve, 400))
+
+  if (step === 'who' && values.email === 'taken@example.com') {
+    session.setErrors({ email: 'already registered' })
+    return false
+  }
+})
 </script>
 
 <template>

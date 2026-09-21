@@ -528,6 +528,27 @@ whether it moved. A wizard built inside a component hands both over together:
 const session = useFormSession({ ...form, steps })
 ```
 
+`next` also takes the handler for whatever has to succeed before leaving —
+saving the step, most of the time:
+
+```ts
+const advance = () => session.next(async ({ step, values }) => {
+  const { error } = await api.post(`/onboarding/${step}`, values)
+
+  if (error) {
+    session.setErrors({ email: 'already registered' })
+    return false
+  }
+})
+```
+
+It runs only after the step validated and receives that step's values, with
+`step` narrowed so a `switch` on it is typed. Returning `false` keeps the wizard
+where it is, having said why through `setErrors`; throwing keeps it there too,
+and the throw is yours — a network that fell over is not a form outcome.
+`isSubmitting` covers the wait, so the button disables itself and a second click
+is the same click.
+
 ## Catalog
 
 ```ts
@@ -692,7 +713,14 @@ reused in two places doesn't drag a name along. TypeScript also refuses the same
 key twice in a literal, so two steps cannot share a name by accident.
 
 `next()` validates the active step's keys — through the same `shape` the submit
-reads — and advances only if they pass. The result comes back either way:
+reads — and advances only if they pass. It also takes a gate: anything else that
+has to succeed first, which returning `false` refuses.
+
+```ts
+await steps.next(async () => confirm('Send this step?'))
+```
+
+A session fills that gate in for you — see [the attempt](#with-a-wizard). The result comes back either way:
 what to show for a field that failed is the page's question, not the machine's.
 `back()` is free, and `goTo(name)` moves backwards only, so no step is skipped
 without having been asked whether it is valid.
