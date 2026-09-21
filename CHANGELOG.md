@@ -6,7 +6,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- **The guard against shared state follows the field, not the record.** It
+  marked the fields object, so two records holding the same built field — which
+  is what composing fragments makes easy — drove two forms with one piece of
+  reactive state and nothing said so. Every field is marked now, and the
+  warning names the keys.
 
 ## 0.1.0 — 2026-09-21
 

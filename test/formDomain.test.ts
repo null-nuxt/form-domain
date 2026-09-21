@@ -349,6 +349,41 @@ describe('the guard against state shared across requests', () => {
   })
 
   /**
+   * The container is not the leak, the field is. Two records holding one built
+   * field share its value, and nothing about either record says so — which is
+   * exactly what composing fragments makes easy to do by accident.
+   */
+  it('warns when one built field reaches a second form through another fields object', () => {
+    const warnings = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const cpf = refField({ label: 'CPF', value: '' })
+
+    const first = toForm(refFields({ cpf, name: { label: 'Name', value: '' } }))
+    expect(warnings).not.toHaveBeenCalled()
+
+    const second = toForm(refFields({ cpf, email: { label: 'E-mail', value: '' } }))
+
+    expect(warnings).toHaveBeenCalledOnce()
+    expect(warnings.mock.calls[0]?.[0]).toContain('`cpf`')
+
+    // why it matters: one form's typing lands in the other
+    first.set({ cpf: '11111111111' })
+    expect(second.values.value.cpf).toBe('11111111111')
+
+    warnings.mockRestore()
+  })
+
+  it('stays quiet when the form that held the field was disposed', () => {
+    const warnings = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const cpf = refField({ label: 'CPF', value: '' })
+
+    toForm(refFields({ cpf, name: { label: 'Name', value: '' } })).dispose()
+    toForm(refFields({ cpf, email: { label: 'E-mail', value: '' } }))
+
+    expect(warnings).not.toHaveBeenCalled()
+    warnings.mockRestore()
+  })
+
+  /**
    * The real SSR case: the setup returns module-scope fields, and the next
    * request runs it again receiving the SAME objects.
    */
