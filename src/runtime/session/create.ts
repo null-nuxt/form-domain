@@ -1,5 +1,6 @@
-import { computed, ref, shallowReactive, watch, watchEffect } from 'vue'
+import { computed, getCurrentScope, onScopeDispose, ref, shallowReactive, watch, watchEffect } from 'vue'
 import { isVisible } from '../engine/visibility'
+import { getFormSessions } from './registry'
 import type { ComputedRef } from 'vue'
 import type { AnyFields } from '../types'
 import type { ValidationResult } from '../standard'
@@ -82,6 +83,8 @@ export type FormSession<Form> = {
   /** How many times sending was attempted. Zero is why a pristine form shows nothing. */
   attempts: ComputedRef<number>
   errors: ComputedRef<Partial<Record<KeyOf<Form>, string>>>
+  /** The fields visited so far — what decides, with `attempts`, whether a message shows. */
+  touched: ComputedRef<ReadonlyArray<KeyOf<Form>>>
   errorOf: (key: KeyOf<Form>) => string | undefined
   /** Marks a field as visited and checks it — for a project that shows errors on blur. */
   touch: (key: KeyOf<Form>) => Promise<void>
@@ -244,10 +247,29 @@ export function useFormSession<Form extends SessionTarget>(form: Form): FormSess
     return steps.current.value !== leaving
   }
 
-  return {
-    isSubmitting: computed(() => submitting.value),
+  const visited = computed(() => [...touched] as ReadonlyArray<KeyOf<Form>>)
+
+  /**
+   * Announced for the length of its scope, so a panel can show what a form is
+   * being asked and what it has answered. Nothing reads it to do work.
+   */
+  const announced = {
+    id: (form as { id?: string }).id,
     attempts: computed(() => attempts.value),
+    isSubmitting: computed(() => submitting.value),
+    errors: errors as ComputedRef<Record<string, string>>,
+    touched: visited as ComputedRef<readonly string[]>,
+  }
+
+  const sessions = getFormSessions()
+  sessions.add(announced)
+  if (getCurrentScope()) onScopeDispose(() => sessions.delete(announced))
+
+  return {
+    isSubmitting: announced.isSubmitting,
+    attempts: announced.attempts,
     errors,
+    touched: visited,
     errorOf: (key: string) => messageFor(key),
     touch,
     setErrors: (incoming: Record<string, string | undefined>) => {

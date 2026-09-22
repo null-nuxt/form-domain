@@ -6,12 +6,23 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **An inspector at `/__forms`**, in dev: every domain built in this tab, with
+  what each field holds, the rule attached to it, whether it is being validated
+  right now, its options and `meta`, and what a session is showing for it. It
+  reads and writes nothing.
+
+- **`session.touched`**, the fields visited so far — what decides, together with
+  `attempts`, whether a message is shown. Sessions also announce themselves per
+  request, which is how the inspector finds them.
+
 ### Changed
 
 - **One way to keep something per request.** The registry, the binding extenders
   and now the sessions all needed the same thing, and each had its own copy of
-  it; `perRequest` is that thing, once. The registry is reactive as well, so
-  anything watching it sees a form the moment it is built.
+  it; `perRequest` is that thing, once. The registry is reactive as well, so a
+  panel watching it sees a form the moment it is built.
 
 ## 0.2.0 — 2026-09-21
 

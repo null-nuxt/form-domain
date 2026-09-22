@@ -7,6 +7,17 @@ const fieldsInSchema = computed(() => Object.keys(shape.value))
 <template>
   <main style="font-family: system-ui; padding: 2rem; display: grid; gap: 1rem; max-width: 46rem">
     <h1>@null-nuxt/form-domain</h1>
+    <nav style="display:flex; gap:.75rem; font-size:.85rem">
+      <NuxtLink to="/simple">
+        simple
+      </NuxtLink>
+      <NuxtLink to="/wizard">
+        wizard
+      </NuxtLink>
+      <NuxtLink to="/__forms">
+        inspector
+      </NuxtLink>
+    </nav>
     <p style="color:#52525b; font-size:.9rem">
       This domain is a setup: the fields in one file, and each block —
       document, region — owning its own rule and its own validation.
@@ -19,10 +30,10 @@ const fieldsInSchema = computed(() => Object.keys(shape.value))
           —
         </option>
         <option value="PF">
-          Pessoa Física
+          Individual
         </option>
         <option value="PJ">
-          Pessoa Jurídica
+          Company
         </option>
       </select>
     </label>

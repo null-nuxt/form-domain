@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { addImports, addTemplate, createResolver, defineNuxtModule } from '@nuxt/kit'
+import { addImports, addTemplate, createResolver, defineNuxtModule, extendPages } from '@nuxt/kit'
 import type { NuxtModule } from '@nuxt/schema'
 
 export interface ModuleOptions {
@@ -102,6 +102,22 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     })
 
     nuxt.options.alias['#form-domains'] = domainsTemplate.dst
+
+    /**
+     * A page rather than a Nuxt DevTools tab, for now: a tab is an iframe with
+     * its own JavaScript realm, so it cannot share the app's reactivity and has
+     * to poll a snapshot across the boundary. A route inside the app reads the
+     * very objects the form is using.
+     */
+    if (nuxt.options.dev) {
+      extendPages((pages) => {
+        pages.push({
+          name: 'form-domain-inspector',
+          path: '/__forms',
+          file: resolver.resolve('./runtime/devtools/form-inspector.vue'),
+        })
+      })
+    }
 
     if (options.autoImports) {
       addImports([

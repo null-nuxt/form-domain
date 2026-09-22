@@ -19,7 +19,7 @@ yup 1.7+.
 
 **Several screens** · [Multi-step forms](#multi-step-forms)
 
-**Around the form** · [Catalog](#catalog) · [Two ways in](#two-ways-in-and-which-is-for-what) · [Scaling up](#scaling-up)
+**Around the form** · [Seeing what a form is doing](#seeing-what-a-form-is-doing) · [Catalog](#catalog) · [Two ways in](#two-ways-in-and-which-is-for-what) · [Scaling up](#scaling-up)
 
 **Reference** · [What the compiler guarantees](#what-the-compiler-guarantees) · [API](#api) · [Development](#development)
 
@@ -548,6 +548,35 @@ where it is, having said why through `setErrors`; throwing keeps it there too,
 and the throw is yours — a network that fell over is not a form outcome.
 `isSubmitting` covers the wait, so the button disables itself and a second click
 is the same click.
+
+## Seeing what a form is doing
+
+In dev the module adds a page at `/__forms`: every domain built in this tab,
+and for each one what its fields hold, which rule is attached, whether the field
+is being validated right now, what its options and `meta` are, and whatever a
+session is showing for it.
+
+```
+field         value   shown  validated  rule                      options  meta            error
+personType    "PF"    yes    yes        onChange                  —        —               —
+cpf           ""      yes    yes        canShow, clearWhenHidden  —        {"mask":"cpf"}  —
+cnpj          ""      no     no         canShow, clearWhenHidden  —        {"mask":"cnpj"} —
+region        ""      yes    yes        canShow, deriveOptions    2        —               —
+```
+
+It reads and writes nothing. Two things to know about what it can see:
+
+- **It shows the forms built in this page load.** Reach it by clicking through
+  the app, not by typing the URL: a full reload starts a new app, and the
+  registry is per request by design. A domain outlives the page that asked for
+  it, so navigating around and coming back still shows it.
+- **It shows domains.** A form built inside a component with `toForm` has no id
+  and is in no registry, so it does not appear.
+
+A Nuxt DevTools tab would not have the first limitation, and is the natural next
+step — a tab is an iframe with its own JavaScript realm, so it reads the app's
+state across the boundary instead of sharing its reactivity, which means polling
+a snapshot rather than watching it.
 
 ## Catalog
 
