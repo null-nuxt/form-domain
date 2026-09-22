@@ -75,13 +75,17 @@ const optionCount = (field: {
  * What every built form is doing right now.
  *
  * Reading only: it walks the same per-request registry the catalog uses, and
- * touches nothing. Called inside a `computed`, it re-reads when any of it
- * changes, because what it reads are the reactive fields themselves.
+ * touches nothing.
+ *
+ * `host` is the app to read, for when the caller is not in it — the DevTools
+ * panel runs in an iframe with a Nuxt app of its own, and the forms it is
+ * showing belong to the page underneath. Left out, it reads the app it is in.
  */
-export const inspectForms = (): InspectedForm[] => {
-  const sessions = [...getFormSessions()]
+export const inspectForms = (host?: Record<string, unknown> | null): InspectedForm[] => {
+  const registry = host ? getFormRegistry.from(host) : getFormRegistry()
+  const sessions = [...(host ? getFormSessions.from(host) ?? [] : getFormSessions())]
 
-  return [...getFormRegistry().entries()].map(([id, instance]) => {
+  return [...(registry?.entries() ?? [])].map(([id, instance]) => {
     const form = instance as {
       fields: AnyFields
       values: { value: Record<string, unknown> }

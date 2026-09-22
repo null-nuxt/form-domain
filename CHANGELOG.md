@@ -8,10 +8,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **An inspector at `/__forms`**, in dev: every domain built in this tab, with
-  what each field holds, the rule attached to it, whether it is being validated
-  right now, its options and `meta`, and what a session is showing for it. It
-  reads and writes nothing.
+- **An inspector**, in dev: a **Forms** tab in Nuxt DevTools, and the same page
+  at `/__forms`. Every domain built in the app, with what each field holds, the
+  rule attached to it, whether it is being validated right now, its options and
+  `meta`, and what a session is showing for it. It reads and writes nothing.
 
 - **`session.touched`**, the fields visited so far — what decides, together with
   `attempts`, whether a message is shown. Sessions also announce themselves per

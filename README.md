@@ -551,10 +551,11 @@ is the same click.
 
 ## Seeing what a form is doing
 
-In dev the module adds a page at `/__forms`: every domain built in this tab,
-and for each one what its fields hold, which rule is attached, whether the field
-is being validated right now, what its options and `meta` are, and whatever a
-session is showing for it.
+In dev the module adds a **Forms** tab to Nuxt DevTools, and the same page at
+`/__forms` if you would rather have it full screen. Either one shows every
+domain built in the app, and for each one what its fields hold, which rule is
+attached, whether the field is being validated right now, what its options and
+`meta` are, and whatever a session is showing for it.
 
 ```
 field         value   shown  validated  rule                      options  meta            error
@@ -564,19 +565,19 @@ cnpj          ""      no     no         canShow, clearWhenHidden  —        {"m
 region        ""      yes    yes        canShow, deriveOptions    2        —               —
 ```
 
-It reads and writes nothing. Two things to know about what it can see:
+It reads and writes nothing, and it shows **domains**: a form built inside a
+component with `toForm` has no id and is in no registry, so it does not appear.
 
-- **It shows the forms built in this page load.** Reach it by clicking through
-  the app, not by typing the URL: a full reload starts a new app, and the
-  registry is per request by design. A domain outlives the page that asked for
-  it, so navigating around and coming back still shows it.
-- **It shows domains.** A form built inside a component with `toForm` has no id
-  and is in no registry, so it does not appear.
+The tab is an iframe with a JavaScript realm of its own, so it cannot share the
+app's reactivity — it reads the app underneath through the devtools client and
+polls a snapshot four times a second. The same page opened as a route reads the
+app it is in, and polls all the same, because one path that always works beats
+two that differ by where you opened it.
 
-A Nuxt DevTools tab would not have the first limitation, and is the natural next
-step — a tab is an iframe with its own JavaScript realm, so it reads the app's
-state across the boundary instead of sharing its reactivity, which means polling
-a snapshot rather than watching it.
+Opened as a route it shows the forms built in that page load, so reach it by
+clicking through the app rather than by typing the URL: a full reload starts a
+new app, and the registry is per request by design. In the DevTools drawer this
+does not come up, since the app underneath is never reloaded.
 
 ## Catalog
 

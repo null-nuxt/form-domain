@@ -1,23 +1,36 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onScopeDispose, ref } from 'vue'
+import { useDevtoolsClient } from '@nuxt/devtools-kit/iframe-client'
 import { inspectForms } from './state'
+import type { InspectedForm } from './state'
 
 /**
- * What every form built in this request is doing right now: its fields, what
- * each one holds, which rule is attached, whether it is being validated, and
- * what a session is saying about it.
+ * What every form built in the app is doing right now: its fields, what each
+ * one holds, which rule is attached, whether it is being validated, and what a
+ * session is saying about it. Reading only.
  *
- * Reading only. It walks the per-request registry, so it shows the forms this
- * tab has built — navigate the app, come back, and the domain is still here,
- * because a domain outlives the page that asked for it.
+ * In the DevTools drawer this page is an iframe with a Nuxt app of its own, so
+ * the forms to show are the ones in the page underneath — reached through the
+ * devtools client. Opened as a route in the app, there is no client and the app
+ * to read is this one.
+ *
+ * Either way it polls. An iframe cannot share the reactivity of another realm,
+ * and one path that always works beats two that differ by where you opened it.
  */
-const mounted = ref(false)
-onMounted(() => {
-  mounted.value = true
-})
+const client = useDevtoolsClient()
+const forms = ref<InspectedForm[]>([])
 
-// on the server the registry belongs to a request nobody is looking at
-const forms = computed(() => mounted.value ? inspectForms() : [])
+const read = () => {
+  const host = client.value?.host?.nuxt as Record<string, unknown> | undefined
+  forms.value = inspectForms(host)
+}
+
+onMounted(() => {
+  read()
+
+  const timer = setInterval(read, 300)
+  onScopeDispose(() => clearInterval(timer))
+})
 
 const selected = ref('')
 const current = computed(() => forms.value.find(form => form.id === selected.value) ?? forms.value[0])
