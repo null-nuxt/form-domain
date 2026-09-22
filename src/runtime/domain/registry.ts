@@ -1,18 +1,13 @@
-import { tryUseNuxtApp } from '#imports'
-
-const REGISTRY_KEY = '__nuxt_forms__'
-
-/** Outside Nuxt (unit tests) there is no request to isolate: a map is enough. */
-const standaloneRegistry = new Map<string, unknown>()
+import { shallowReactive } from 'vue'
+import { perRequest } from '../request'
 
 /**
- * Instances live per request under SSR — keeping them in a module variable
- * would leak one user's data into the next request.
+ * The domains built so far, by id.
+ *
+ * Per request, because an instance holds reactive state: kept in a module
+ * variable, the second request would drive what the first one filled in.
+ *
+ * Reactive so that a panel watching it sees a form the moment it is built —
+ * the instances inside are reactive already; the Map itself was not.
  */
-export const getFormRegistry = (): Map<string, unknown> => {
-  const nuxtApp = tryUseNuxtApp() as Record<string, unknown> | null | undefined
-  if (!nuxtApp) return standaloneRegistry
-
-  nuxtApp[REGISTRY_KEY] ??= new Map<string, unknown>()
-  return nuxtApp[REGISTRY_KEY] as Map<string, unknown>
-}
+export const getFormRegistry = perRequest('__nuxt_forms__', () => shallowReactive(new Map<string, unknown>()))

@@ -6,7 +6,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **One way to keep something per request.** The registry, the binding extenders
+  and now the sessions all needed the same thing, and each had its own copy of
+  it; `perRequest` is that thing, once. The registry is reactive as well, so
+  anything watching it sees a form the moment it is built.
 
 ## 0.2.0 — 2026-09-21
 

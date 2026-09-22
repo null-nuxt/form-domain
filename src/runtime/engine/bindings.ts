@@ -1,4 +1,4 @@
-import { tryUseNuxtApp } from '#imports'
+import { perRequest } from '../request'
 import type { FieldObj } from '../fields/declare'
 
 /**
@@ -25,22 +25,12 @@ export type FormBindingsExtender = (
   context: { key: string },
 ) => (Record<string, unknown> & { [K in ContractKey]?: never }) | undefined
 
-const EXTENDERS_KEY = '__nuxt_forms_bindings__'
-
-/** Outside Nuxt (unit tests) there is no request to isolate. */
-const standaloneExtenders: FormBindingsExtender[] = []
-
 /**
- * Per request under SSR, like the registry. A plugin runs once per request, so a
- * module-level list would collect one more copy of the same extender every time.
+ * Per request, like the registry. A plugin runs once per request, so a
+ * module-level list would collect one more copy of the same extender every
+ * time.
  */
-export const getBindingExtenders = (): FormBindingsExtender[] => {
-  const nuxtApp = tryUseNuxtApp() as Record<string, unknown> | null | undefined
-  if (!nuxtApp) return standaloneExtenders
-
-  nuxtApp[EXTENDERS_KEY] ??= []
-  return nuxtApp[EXTENDERS_KEY] as FormBindingsExtender[]
-}
+export const getBindingExtenders = perRequest('__nuxt_forms_bindings__', (): FormBindingsExtender[] => [])
 
 /**
  * Registers an extender — call it from a plugin. Returns the function that removes it.
