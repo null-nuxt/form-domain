@@ -47,10 +47,11 @@
     "bootstrap": "pnpm dev:prepare",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && pnpm typecheck:playground",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json && pnpm typecheck:types && pnpm typecheck:playground",
     "typecheck:playground": "cd playground && vue-tsc --build --force",
     "test": "vitest run",
-    "build": "pnpm prepack"
+    "build": "pnpm prepack",
+    "typecheck:types": "tsc --noEmit -p test/types/tsconfig.json"
   },
   "dependencies": {
     "@nuxt/devtools-kit": "^3.4.2",

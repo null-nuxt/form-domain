@@ -17,6 +17,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `attempts`, whether a message is shown. Sessions also announce themselves per
   request, which is how the inspector finds them.
 
+### Fixed
+
+- **`declare module '#forms'` resolves in a project that imports nothing from
+  `#forms`.** An augmentation only resolves if something in the program has
+  referenced the module, and a project living on auto-imports never does —
+  TypeScript then reports `module '#forms' cannot be found` on the augmentation,
+  which is not where the problem is. The module generates that reference itself.
+
 ### Changed
 
 - **One way to keep something per request.** The registry, the binding extenders

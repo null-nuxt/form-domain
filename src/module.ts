@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { addImports, addTemplate, createResolver, defineNuxtModule, extendPages } from '@nuxt/kit'
+import { addImports, addTemplate, addTypeTemplate, createResolver, defineNuxtModule, extendPages } from '@nuxt/kit'
 import { addCustomTab } from '@nuxt/devtools-kit'
 import type { NuxtModule } from '@nuxt/schema'
 
@@ -103,6 +103,20 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
     })
 
     nuxt.options.alias['#form-domains'] = domainsTemplate.dst
+
+    /**
+     * One reference to `#forms`, so a project never has to make one.
+     *
+     * `declare module '#forms'` — how a project types the keys its extender adds
+     * — is a module augmentation, and TypeScript only resolves an augmentation
+     * if something in the program has already referenced that module. A project
+     * living on auto-imports never does, and the error it gets then blames the
+     * augmentation ("module '#forms' cannot be found") rather than the cause.
+     */
+    addTypeTemplate({
+      filename: 'types/form-domain.d.ts',
+      getContents: () => 'import type {} from \'#forms\'\n',
+    })
 
     /**
      * The inspector, in dev only: a route in the app, and the DevTools tab that

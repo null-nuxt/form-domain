@@ -332,6 +332,12 @@ declare module '#forms' {
 }
 ```
 
+That augmentation needs no import from `#forms`. It normally would — an
+augmentation only resolves if something in the program has referenced the module
+— but a project living on auto-imports references it nowhere, and TypeScript
+reports that as `module '#forms' cannot be found` **on the augmentation**, which
+is not where the problem is. The module generates the reference instead.
+
 A key whose value is `undefined` is left out: the extender had nothing to add
 for that field, which is what lets it be written as the plain object it is
 rather than a spread of conditionals. It does not mean "remove" — a default the
