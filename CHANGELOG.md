@@ -6,16 +6,23 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Added
+Nothing yet.
 
-- **An inspector**, in dev: a **Forms** tab in Nuxt DevTools, and the same page
-  at `/__forms`. Every domain built in the app, with what each field holds, the
-  rule attached to it, whether it is being validated right now, its options and
-  `meta`, and what a session is showing for it. It reads and writes nothing.
+## 0.3.0 — 2026-09-24
 
-- **`session.touched`**, the fields visited so far — what decides, together with
-  `attempts`, whether a message is shown. Sessions also announce themselves per
-  request, which is how the inspector finds them.
+The questions a real form asks that this module could not answer yet. A list
+that has to be fetched, with the loading, the race and the stale value that come
+with it. A field something else decides, which is not the same as a field that
+is hidden. A message that depends on a value in another field, which used to sit
+there being wrong until the next submit.
+
+There is also somewhere to look now: a Forms tab in Nuxt DevTools that says what
+each field holds, which rule is attached to it, whether it is being validated
+right now, and what a session is showing for it.
+
+And one fix that was the module's fault: a project typing its own binding keys
+got `module '#forms' cannot be found`, pointing at the augmentation rather than
+at the cause, which was that nothing had put `#forms` in the program.
 
 ### Added
 
@@ -26,18 +33,27 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   leaves the list and the value alone, and a successful one drops a value the
   new list no longer offers.
 
-- **`field.touch`**, published by a session for as long as it lives, so a
-  project wires "this field was visited" through its own extender instead of
-  repeating an event binding on every input. There is still exactly one
-  `register()`: naming the event is the project's call, the same way naming the
-  prop that carries a message is.
-
 - **`canEdit`**, a rule for a field something else decides — a city filled in
   from a postcode. Unlike `canShow` it does not take the field out of
   validation: what it holds still has to be right, and locking says who may
   write it. `register()` sends `disabled` while it is shut and the engine
   refuses the write, so it holds whether or not the component honoured the prop;
   `set()` and a rule's `patch()` still fill it. The map is `form.canEdit`.
+
+- **`field.touch`**, published by a session for as long as it lives, so a
+  project wires "this field was visited" through its own extender instead of
+  repeating an event binding on every input. There is still exactly one
+  `register()`: naming the event is the project's call, the same way naming the
+  prop that carries a message is.
+
+- **`session.touched`**, the fields visited so far — what decides, together with
+  `attempts`, whether a message is shown. Sessions also announce themselves per
+  request, which is how the inspector finds them.
+
+- **An inspector**, in dev: a **Forms** tab in Nuxt DevTools, and the same page
+  at `/__forms`. Every domain built in the app, with what each field holds, the
+  rule attached to it, whether it is being validated right now, its options and
+  `meta`, and what a session is showing for it. It reads and writes nothing.
 
 ### Changed
 
@@ -47,6 +63,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   confirmation — every field already asked about answers again, once per burst
   of typing rather than once per keystroke.
 
+- **One way to keep something per request.** The registry, the binding extenders
+  and now the sessions all needed the same thing, and each had its own copy of
+  it; `perRequest` is that thing, once. The registry is reactive as well, so a
+  panel watching it sees a form the moment it is built.
+
 ### Fixed
 
 - **`declare module '#forms'` resolves in a project that imports nothing from
@@ -54,13 +75,6 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   referenced the module, and a project living on auto-imports never does —
   TypeScript then reports `module '#forms' cannot be found` on the augmentation,
   which is not where the problem is. The module generates that reference itself.
-
-### Changed
-
-- **One way to keep something per request.** The registry, the binding extenders
-  and now the sessions all needed the same thing, and each had its own copy of
-  it; `perRequest` is that thing, once. The registry is reactive as well, so a
-  panel watching it sees a form the moment it is built.
 
 ## 0.2.0 — 2026-09-21
 

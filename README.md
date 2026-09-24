@@ -26,7 +26,7 @@ yup 1.7+.
 ## Installation
 
 ```bash
-pnpm add "github:null-nuxt/form-domain#v0.2.0"
+pnpm add "github:null-nuxt/form-domain#v0.3.0"
 ```
 
 Pin a tag for reproducible installs. Dropping it resolves to whatever `main`
@@ -192,8 +192,10 @@ the whole function instead of the offending key.
 | | what it does |
 |---|---|
 | `canShow` | hides the field, and drops it from validation |
+| `canEdit` | locks it — and unlike hiding, it stays in validation |
 | `clearWhenHidden` | resets it to its initial value once hidden |
 | `deriveOptions` | a derived list; wins over the one declared on the field, and only for a field that declared one |
+| `loadOptions` | a fetched list; re-runs on whatever it read before its first `await` |
 | `onChange` | a side effect, writing through `ctx.patch()` |
 
 `canShow` returning false removes the field from validation. That's what erases
@@ -942,6 +944,7 @@ rest, so the wizard would walk in an order nobody wrote.
 | `setErrors` naming a field that doesn't exist | **compile time** |
 | `goTo()` naming a step that doesn't exist | **compile time** |
 | `deriveOptions` on a field that declared no options | **compile time** |
+| `loadOptions` on a field that declared no options | **compile time** |
 | reading `options`/`selected` on a field that isn't a choice | **compile time** |
 | `useFormDomain('unknown-slug')` | **compile time** |
 | the payload reading a key it doesn't project | **compile time** |
@@ -951,45 +954,93 @@ rest, so the wizard would walk in an order nobody wrote.
 ## API
 
 ```ts
+defineFields({ name: { ... } })   // a declaration in its own file, checked there
+mergeFields([a, b])               // declaration fragments into one
 refField({ label, value })        // one field, reusable across domains
 refFields({ name: { ... } })      // the form's fields, named
-mergeFields([a, b])               // declaration fragments into one
-defineFields({ name: { ... } })   // a declaration in its own file, checked there
 refSteps({ who: { ... } })        // one tree out of the steps, plus where in it we are
-addStepRules(steps, { who: {...} })  // when a step applies at all
-useFormSession(form)              // the attempt: submit, messages, touched
 
-addRule(field, rule)           // behaviour for one field
-addRules(fields, { ... })      // for several, keyed
-addSchema(field, validator)    // validation for one
-addSchemas(fields, { ... })    // for several
-
-extendFormBindings(extender)   // extra keys on register(), from a plugin
+addRule(field, rule)              // behaviour for one field
+addRules(fields, { ... })         // for several, keyed
+addSchema(field, validator)       // validation for one
+addSchemas(fields, { ... })       // for several
+addStepRules(steps, { ... })      // when a step applies at all
 
 toForm(fields)                       // assemble inside a component
 defineFormDomain(id, meta?, setup)   // a shared domain
   .payload(ctx => ({ ... }))         // optional projection
+
+useFormDomain('slug')             // a domain, in a component
+useFormSession(form)              // the attempt: submit, messages, visited
+extendFormBindings(extender)      // extra keys on register(), from a plugin
 ```
 
-```ts
-const form = useFormDomain('federal-court')
+**The form**
 
+```ts
 form.id           // slug, as a literal type
-form.fields       // the field objects: { label, value, key, selected }
+form.fields       // the field objects
 form.values       // every value
 form.visible      // only what a rule allows through
 form.canShow      // { field: boolean }
+form.canEdit      // { field: boolean } — shown, but not to be typed in
 form.selected     // the chosen option per field
 form.options      // effective options per field
 form.shape        // visible validators, with the types you declared
 form.composeSchema(object)  // the same, composed by your library, reactive
-form.validate()   // validates visible fields only
-form.validateField(k)  // one field; hidden or unvalidated counts as valid
+form.validate()           // every visible field
+form.validate(keys)       // only those, through the same shape
+form.validateField(k)     // one; hidden or unvalidated counts as valid
 form.payload      // the projection, or `values` if none declared
 form.register(k)  // ready-made input props, plus what extenders add
 form.set(patch)   // partial, typed patch
 form.reset()      // back to initial values
 form.dispose()    // stops the effects
+```
+
+**The steps**, when the form has them
+
+```ts
+steps.fields          // the one tree every step was merged into
+steps.names           // every step, declared order — skipped ones included
+steps.canShow         // { step: boolean }
+steps.visibleNames    // the ones actually walked
+steps.current         // where it is
+steps.index           // position among the visible ones
+steps.isFirst / isLast
+steps.activeKeys      // the current step's keys, minus what a rule hides
+steps.keysOf(name)    // one step's keys
+steps.next(gate?)     // validates, then the gate, then moves
+steps.back()
+steps.goTo(name)      // backwards only
+steps.resume(name)    // walks forward as far as the data allows
+steps.isStepName(s)   // narrows a string from a URL or a draft
+```
+
+**The session**
+
+```ts
+session.errors        // what is worth showing, per field
+session.errorOf(k)
+session.touched       // the fields visited so far
+session.touch(k)      // mark one visited, and check it
+session.setErrors({ ... })   // what the server said
+session.clearErrors()
+session.attempts      // zero is why a pristine form shows nothing
+session.isSubmitting
+session.submit(handler)      // validates, then hands over the payload
+session.next(handler?)       // with steps: validates, saves, then moves
+```
+
+**What a field carries**, for an extender to map onto a component
+
+```ts
+field.label / value / key
+field.meta            // whatever the declaration put there
+field.error           // what a session is showing for it
+field.touch           // say it was visited — undefined with no session
+field.loadingOptions  // a fetched list is in flight
+field.selected        // the chosen option, from the effective list
 ```
 
 ## Development
