@@ -124,6 +124,17 @@ export interface FieldObj<TValue, TValues = Record<string, unknown>, TDeclared =
    * `meta.mask`. An input that declares none gets nothing.
    */
   error?: string
+  /**
+   * Says this field has been visited, which is half of what decides whether a
+   * message is worth showing. Written by a session, for as long as it is alive.
+   *
+   * Here for the same reason `error` is: there is one `register()`, and the
+   * project maps this onto whatever its components actually emit — `onBlur`,
+   * `onFocusout`, nothing at all. A session inventing the name would be the
+   * module deciding a component's vocabulary, which is what `meta` exists to
+   * avoid.
+   */
+  touch?: () => void
   /** The option matching the current value — or the options, for a multi-choice field. */
   readonly selected: SelectedOf<TValue>
   /** Marks the object as a field so the engine can tell it from anything else. */
@@ -147,6 +158,7 @@ interface ReactiveSource<TValue> {
   loadingOptions?: boolean
   schema?: unknown
   error?: string
+  touch?: () => void
   readonly selected: SelectedOf<TValue>
   readonly __isFormField: true
 }

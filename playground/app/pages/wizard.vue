@@ -144,7 +144,6 @@ const advance = () => session.next(async ({ step, values }) => {
         <SimpleInput
           v-else
           v-bind="register(key)"
-          @blur="session.touch(key)"
         />
       </template>
 

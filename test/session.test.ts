@@ -1,4 +1,4 @@
-import { nextTick } from 'vue'
+import { effectScope, nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { string } from 'yup'
 import { addRules, addSchemas } from '../src/runtime/fields/register'
@@ -78,6 +78,35 @@ describe('useFormSession', () => {
 
     expect(session.errorOf('name')).toBeUndefined()
     expect(form.fields.name.error).toBeUndefined()
+  })
+
+  /**
+   * How a project wires "visited" without a second `register`: the session puts
+   * the action on the field, and the project's extender gives it the name its
+   * own components use.
+   */
+  it('publishes touch on the field while it is alive', async () => {
+    const form = buildForm()
+    const session = useFormSession(form)
+
+    expect(form.fields.name.touch).toBeTypeOf('function')
+
+    form.fields.name.touch!()
+    await settle()
+
+    expect(session.errorOf('name')).toBe('Name is required')
+  })
+
+  it('takes it back when its scope ends', () => {
+    const form = buildForm()
+    const scope = effectScope()
+    scope.run(() => useFormSession(form))
+
+    expect(form.fields.name.touch).toBeTypeOf('function')
+
+    scope.stop()
+
+    expect(form.fields.name.touch).toBeUndefined()
   })
 
   const buildPair = () => {

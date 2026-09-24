@@ -26,6 +26,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   leaves the list and the value alone, and a successful one drops a value the
   new list no longer offers.
 
+- **`field.touch`**, published by a session for as long as it lives, so a
+  project wires "this field was visited" through its own extender instead of
+  repeating an event binding on every input. There is still exactly one
+  `register()`: naming the event is the project's call, the same way naming the
+  prop that carries a message is.
+
 - **`canEdit`**, a rule for a field something else decides — a city filled in
   from a postcode. Unlike `canShow` it does not take the field out of
   validation: what it holds still has to be right, and locking says who may

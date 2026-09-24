@@ -579,19 +579,29 @@ wrap `register()`, and there is no `session.register`: one door means there is
 never a question of which one to use.
 
 Nothing reaches a component on its own. The project maps it with
-`extendFormBindings` — the same mechanism as `meta.mask` — under whatever name
-its own input declares:
+`extendFormBindings` — the same mechanism as `meta.mask` — under whatever names
+its own inputs use:
 
 ```ts
-extendFormBindings(field => field.error ? { errorMessage: field.error } : undefined)
+extendFormBindings(field => ({
+  errorMessage: field.error,
+  onBlur: field.touch,
+}))
 ```
+
+`field.touch` is the other half: the session publishes it for as long as it is
+alive, and the project decides which event carries it. That is deliberate — a
+`session.register` would have to invent a name for the event, and whether an
+input emits `blur`, `focusout` or nothing at all is a question about the
+project's components, which is exactly what this module refuses to answer
+elsewhere.
 
 An input that declares nothing receives nothing, so a plain `<input>` collects
-no stray attribute. Blur is wired the same way, in the open, where the input is:
+no stray attribute — and with no session in the page, `field.touch` is
+`undefined`, which an extender leaves out on its own.
 
-```vue
-<MyInput v-bind="register(key)" @blur="session.touch(key)" />
-```
+`session.touch(key)` is still there for wiring it by hand where that reads
+better.
 
 ### With a wizard
 

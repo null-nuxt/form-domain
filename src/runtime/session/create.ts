@@ -217,6 +217,21 @@ export function useFormSession<Form extends SessionTarget>(form: Form): FormSess
     await answerAgain(key)
   }
 
+  /**
+   * Published on the fields for as long as this session lives, so a project
+   * wires "visited" the way it wires everything else — through its own extender,
+   * under the name its components use. It is what keeps `register()` one door.
+   */
+  for (const key of keys) fields[key]!.touch = () => void touch(key)
+
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      for (const key of keys) {
+        if (fields[key]) fields[key]!.touch = undefined
+      }
+    })
+  }
+
   const payloadOf = () =>
     ('payload' in form ? (form as { payload: ComputedRef<unknown> }).payload.value : form.values.value)
 
