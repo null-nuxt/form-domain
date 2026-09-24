@@ -17,6 +17,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `attempts`, whether a message is shown. Sessions also announce themselves per
   request, which is how the inspector finds them.
 
+### Added
+
+- **`canEdit`**, a rule for a field something else decides — a city filled in
+  from a postcode. Unlike `canShow` it does not take the field out of
+  validation: what it holds still has to be right, and locking says who may
+  write it. `register()` sends `disabled` while it is shut and the engine
+  refuses the write, so it holds whether or not the component honoured the prop;
+  `set()` and a rule's `patch()` still fill it. The map is `form.canEdit`.
+
 ### Changed
 
 - **A field's message is re-derived when a related field changes**, not only

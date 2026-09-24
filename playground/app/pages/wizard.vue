@@ -37,6 +37,23 @@ addStepRules(steps, {
   company: { canShow: () => steps.fields.kind.value === 'PJ' },
 })
 
+/**
+ * The city is whatever the postcode says it is, so it is locked rather than
+ * hidden: `canEdit` decides who may type in it, and the value still counts —
+ * it is required like any other.
+ */
+addRules(steps.fields, {
+  postcode: {
+    onChange: async (postcode, ctx) => {
+      if (postcode.length !== 8) return ctx.patch({ city: '' })
+
+      await new Promise(resolve => setTimeout(resolve, 300))
+      ctx.patch({ city: 'Recife' })
+    },
+  },
+  city: { canEdit: () => false },
+})
+
 /** One tree, so the validators are attached once, for the whole form. */
 addSchemas(steps.fields, {
   name: string().required('Name is required').min(3, 'Name is too short'),

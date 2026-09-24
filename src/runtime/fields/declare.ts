@@ -26,6 +26,16 @@ export interface FieldRule<TValue, TValues> {
   canShow?: () => boolean
   clearWhenHidden?: boolean
   /**
+   * Whether the field can be typed in. Not the same question as `canShow`, and
+   * deliberately not the same answer: a hidden field leaves validation with its
+   * rule, a locked one does not.
+   *
+   * What a locked field holds usually still has to be right — a city filled in
+   * from a postcode is exactly the kind of value a schema is about. Locking it
+   * says who may write it, not whether it counts.
+   */
+  canEdit?: () => boolean
+  /**
    * The derived list, which wins over the one declared on the field.
    *
    * Named apart from the declaration's `options` because the shapes differ —

@@ -13,6 +13,7 @@ defineProps<{
   placeholder?: string
   mask?: string
   errorMessage?: string
+  disabled?: boolean
 }>()
 
 defineEmits<{ 'update:modelValue': [value: string], blur: [] }>()
@@ -25,7 +26,13 @@ defineEmits<{ 'update:modelValue': [value: string], blur: [] }>()
       :name="name"
       :value="modelValue"
       :placeholder="placeholder"
-      style="padding:.4rem; border:1px solid #d4d4d8; border-radius:.3rem"
+      :disabled="disabled"
+      :style="{
+        padding: '.4rem',
+        border: '1px solid #d4d4d8',
+        borderRadius: '.3rem',
+        background: disabled ? '#f4f4f5' : 'white',
+      }"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       @blur="$emit('blur')"
     >

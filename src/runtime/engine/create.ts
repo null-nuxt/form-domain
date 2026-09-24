@@ -1,6 +1,6 @@
 import { computed, watch } from 'vue'
 import { shapeOf, validateShape } from './validate'
-import { isVisible } from './visibility'
+import { isEditable, isVisible } from './visibility'
 import { claimFields, releaseFields } from './claim'
 import { CONTRACT_KEYS, getBindingExtenders } from './bindings'
 import type { FieldValidationResult, ValidationResult } from '../standard'
@@ -48,6 +48,14 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
   const canShow = computed(() => {
     const result: Record<string, boolean> = {}
     for (const key of keys) result[key] = isVisible(fields[key]!)
+    return result as { [K in keyof F]: boolean }
+  })
+
+  /** Shown, but not to be typed in — a value something else decides. */
+  const canEdit = computed(() => {
+    const result: Record<string, boolean> = {}
+    for (const key of keys) result[key] = isEditable(fields[key]!)
+
     return result as { [K in keyof F]: boolean }
   })
 
@@ -165,6 +173,7 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
     values,
     visible,
     canShow,
+    canEdit,
     selected,
     options,
     shape,
@@ -180,8 +189,12 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
       const target = fields[key]!
       const list = options.value[key]
 
+      const editable = isEditable(target)
+
       const bindings: Record<string, unknown> = {
         label: target.label,
+        // only when it is locked: a field nobody locked says nothing about it
+        ...(editable ? {} : { disabled: true }),
         // a field that declared options is a choice: its select needs the list even
         // while empty. Anything else gets no key, or it lands as a DOM attribute.
         ...(list ? { options: list } : {}),
@@ -219,6 +232,9 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
          * wider type, and the binding has to accept it to be assignable.
          */
         'onUpdate:modelValue': (next: unknown) => {
+          // locked means locked, whether or not the component honoured the prop
+          if (!isEditable(target)) return
+
           target.value = next
         },
       })

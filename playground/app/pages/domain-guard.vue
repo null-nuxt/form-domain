@@ -171,6 +171,20 @@ void fromNullValue
 const fromNullRejects: typeof fromNull.values.value.state = 1
 void fromNullRejects
 
+/**
+ * A locked field: shown, not typed in, still validated. The binding says so
+ * only while the rule is holding it shut, so it is optional rather than absent.
+ */
+const withLocked = refFields({
+  postcode: { label: 'Postcode', value: '' },
+  city: { label: 'City', value: '' },
+})
+
+addRules(withLocked, { city: { canEdit: () => withLocked.postcode.value !== '' } })
+
+const locked: boolean | undefined = toForm(withLocked).register('city').disabled
+void locked
+
 /** `selected` comes off the engine, with no need for the raw fields. */
 const chosen: string | undefined = form.selected.value.profile?.label
 void chosen

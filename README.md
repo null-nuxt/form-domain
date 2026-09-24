@@ -11,7 +11,7 @@ yup 1.7+.
 
 **Why it looks like this** · [Why a setup and not a builder](#why-a-setup-and-not-a-builder) · [The names](#the-names-and-what-each-prefix-promises) · [Registration takes its target](#registration-takes-its-target)
 
-**Declaring** · [Rules](#rules) · [Validation](#validation) · [`meta`](#meta-what-the-project-carries-on-a-field) · [Composing fragments](#composing-fragments) · [Module scope and SSR](#fields-at-module-scope-leak-under-ssr)
+**Declaring** · [Rules](#rules) · [Locked fields](#a-field-something-else-decides) · [Validation](#validation) · [`meta`](#meta-what-the-project-carries-on-a-field) · [Composing fragments](#composing-fragments) · [Module scope and SSR](#fields-at-module-scope-leak-under-ssr)
 
 **Rendering** · [`register()`](#register-builds-the-input-props) · [Extending it](#extending-register) · [Choices](#only-declared-choices-are-choices) · [The option's label](#the-options-label)
 
@@ -205,6 +205,33 @@ hidden field usually needs to keep what the user typed.
 `onChange` writes through `ctx.patch()`, which is a **request**: the engine only
 applies it if that invocation is still the most recent one, so a slow lookup
 can't overwrite newer input.
+
+### A field something else decides
+
+`canShow` hides a field; `canEdit` locks one:
+
+```ts
+addRules(fields, {
+  postcode: {
+    onChange: async (postcode, ctx) => ctx.patch({ city: await lookup(postcode) }),
+  },
+  city: { canEdit: () => false },
+})
+```
+
+The two answer different questions and get different answers. A hidden field
+leaves validation with its rule; a **locked one stays in it**, because what it
+holds usually still has to be right — a city filled in from a postcode is
+exactly the kind of value a schema is about. Locking says who may write it, not
+whether it counts.
+
+`register()` sends `disabled: true` while the rule is holding it shut, and
+nothing at all when it is not. The engine refuses the write as well, so a field
+locked by a rule stays locked whether or not the component honoured the prop —
+while `set()` and a rule's `patch()` still fill it, since that is the whole
+point of locking it.
+
+`form.canEdit` is the map, the sibling of `form.canShow`.
 
 ## Validation
 

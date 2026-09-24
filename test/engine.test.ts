@@ -1,6 +1,7 @@
 import { nextTick } from 'vue'
+import { string } from 'yup'
 import { describe, expect, it, vi } from 'vitest'
-import { addRule, addRules } from '../src/runtime/fields/register'
+import { addRule, addRules, addSchemas } from '../src/runtime/fields/register'
 import { refField, refFields } from '../src/runtime/fields/declare'
 import { defineFormDomain, toForm } from '../src/runtime/domain/define'
 import { getFormRegistry } from '../src/runtime/domain/registry'
@@ -214,6 +215,64 @@ describe('the guard against state shared across requests', () => {
 
     expect(warnings).toHaveBeenCalledOnce()
     warnings.mockRestore()
+  })
+})
+
+describe('a field something else decides', () => {
+  const build = () => {
+    const fields = refFields({
+      postcode: { label: 'Postcode', value: '' },
+      city: { label: 'City', value: '' },
+    })
+
+    addRules(fields, { city: { canEdit: () => fields.postcode.value.length === 8 } })
+
+    return fields
+  }
+
+  it('says so in the bindings while it is locked', () => {
+    const fields = build()
+    const form = toForm(fields)
+
+    expect(form.register('city').disabled).toBe(true)
+    expect(form.canEdit.value.city).toBe(false)
+
+    fields.postcode.value = '50000000'
+
+    expect(form.register('city').disabled).toBeUndefined()
+    expect(form.canEdit.value.city).toBe(true)
+  })
+
+  /** The lock is the engine's, not the component's: a stray write bounces too. */
+  it('refuses what the component sends while it is locked', () => {
+    const form = toForm(build())
+
+    form.register('city')['onUpdate:modelValue']('Typed by hand')
+
+    expect(form.values.value.city).toBe('')
+  })
+
+  /**
+   * But what decides it still writes. `set` is how a postcode lookup fills the
+   * field, and locking says who may type in it, not who may fill it.
+   */
+  it('is still filled by whatever decides it', () => {
+    const form = toForm(build())
+
+    form.set({ city: 'Recife' })
+
+    expect(form.values.value.city).toBe('Recife')
+  })
+
+  /** And unlike a hidden field, it is still validated — the value counts. */
+  it('is validated like any other field', async () => {
+    const fields = build()
+    addSchemas(fields, { city: string().required('City is required') })
+
+    const form = toForm(fields)
+
+    expect(Object.keys(form.shape.value)).toContain('city')
+    expect((await form.validate()).firstErrors.city).toBe('City is required')
   })
 })
 

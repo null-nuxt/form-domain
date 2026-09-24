@@ -160,6 +160,12 @@ export type FieldBindings<F extends AnyFields, K extends keyof F & string> = Pre
     label: string
     modelValue: F[K]['value']
     /**
+     * Present only while a rule is holding the field shut. Optional rather than
+     * declaration-gated, the way `options` is: a rule can be attached from
+     * anywhere at any time, so no declaration can answer whether it will be.
+     */
+    disabled?: boolean
+    /**
      * Widened deliberately, twice. With `| undefined`, because a component
      * declaring `defineModel<string>()` emits `string | undefined`. And from a
      * literal union to its primitive, because a generic select typed `string`
@@ -190,6 +196,8 @@ export interface FormEngine<F extends AnyFields> {
   /** Only what a rule is currently letting through. */
   visible: ComputedRef<Partial<ValuesOf<F>>>
   canShow: ComputedRef<{ [K in keyof F]: boolean }>
+  /** Shown, but not to be typed in. Unlike a hidden field, it is still validated. */
+  canEdit: ComputedRef<{ [K in keyof F]: boolean }>
   /**
    * Where the friendly text comes from: `form.selected.region?.label`.
    *
