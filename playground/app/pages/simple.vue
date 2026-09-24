@@ -18,13 +18,37 @@ const fields = refFields({
       { label: 'Company', value: 'PJ' },
     ],
   },
+  state: {
+    label: 'State*',
+    value: '',
+    options: [
+      { label: 'Pernambuco', value: 'PE' },
+      { label: 'São Paulo', value: 'SP' },
+    ],
+  },
+  city: { label: 'City*', value: '', options: [] },
   cpf: { label: 'CPF*', value: '', meta: { mask: 'cpf' } },
   cnpj: { label: 'CNPJ*', value: '', meta: { mask: 'cnpj' } },
 })
 
 const isIndividual = computed(() => fields.type.value === 'PF')
 
+/** A list that has to be fetched: no dependency declared, just read before the await. */
+const cities: Record<string, Array<{ label: string, value: string }>> = {
+  PE: [{ label: 'Recife', value: 'recife' }, { label: 'Olinda', value: 'olinda' }],
+  SP: [{ label: 'Santos', value: 'santos' }, { label: 'Campinas', value: 'campinas' }],
+}
+
 addRules(fields, {
+  city: {
+    loadOptions: async () => {
+      const state = fields.state.value
+      if (!state) return []
+
+      await new Promise(resolve => setTimeout(resolve, 400))
+      return cities[state] ?? []
+    },
+  },
   cpf: { canShow: () => isIndividual.value, clearWhenHidden: true },
   cnpj: { canShow: () => fields.type.value === 'PJ', clearWhenHidden: true },
 })
@@ -33,6 +57,8 @@ addSchemas(fields, {
   name: string().required('Name is required').min(3, 'Name is too short'),
   email: string().required('Email is required').email('Invalid email'),
   type: string().required('Profile is required'),
+  state: string().required('State is required'),
+  city: string().required('City is required'),
   cpf: string().required('CPF is required'),
   cnpj: string().required('CNPJ is required'),
 })
@@ -70,6 +96,8 @@ const submit = async () => {
       <SimpleInput v-bind="register('name')" />
       <SimpleInput v-bind="register('email')" />
       <SimpleSelect v-bind="register('type')" />
+      <SimpleSelect v-bind="register('state')" />
+      <SimpleSelect v-bind="register('city')" />
 
       <SimpleInput
         v-if="canShow.cpf"

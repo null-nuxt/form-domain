@@ -19,6 +19,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`loadOptions`**, a rule for a list that has to be fetched. What it reads
+  before its first `await` is what re-runs it, the rule `watchEffect` follows,
+  so no dependency is declared and no trigger wired. A slower answer to an older
+  question loses; `loadingOptions` says while one is in flight; a failed load
+  leaves the list and the value alone, and a successful one drops a value the
+  new list no longer offers.
+
 - **`canEdit`**, a rule for a field something else decides — a city filled in
   from a postcode. Unlike `canShow` it does not take the field out of
   validation: what it holds still has to be right, and locking says who may

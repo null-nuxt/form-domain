@@ -31,10 +31,13 @@ const warnIfTaken = (slot: 'rule' | 'schema', key: string, taken: boolean) => {
  */
 export function addRule<TValue, TValues, TDeclared>(
   target: FieldObj<TValue, TValues, TDeclared>,
-  rule: Omit<FieldRule<TValue, TValues>, 'deriveOptions'>
+  rule: Omit<FieldRule<TValue, TValues>, 'deriveOptions' | 'loadOptions'>
     & ('options' extends keyof NonNullable<TDeclared>
-      ? { deriveOptions?: () => ReadonlyArray<FieldOption<OptionValue<TValue>>> }
-      : { deriveOptions?: never }),
+      ? {
+          deriveOptions?: () => ReadonlyArray<FieldOption<OptionValue<TValue>>>
+          loadOptions?: () => Promise<ReadonlyArray<FieldOption<OptionValue<TValue>>>>
+        }
+      : { deriveOptions?: never, loadOptions?: never }),
 ): void {
   warnIfTaken('rule', target.key, target.rule !== undefined)
   target.rule = rule as FieldRule<TValue, TValues>
@@ -55,10 +58,13 @@ export function addRule<TValue, TValues, TDeclared>(
  * the fields that can hold a choice.
  */
 export type RuleFor<F extends AnyFields, K extends keyof F> =
-  Omit<FieldRule<F[K]['value'], ValuesOf<F>>, 'deriveOptions'>
+  Omit<FieldRule<F[K]['value'], ValuesOf<F>>, 'deriveOptions' | 'loadOptions'>
   & (HasOptions<F, K> extends true
-    ? { deriveOptions?: () => ReadonlyArray<FieldOption<OptionValue<F[K]['value']>>> }
-    : { deriveOptions?: never })
+    ? {
+        deriveOptions?: () => ReadonlyArray<FieldOption<OptionValue<F[K]['value']>>>
+        loadOptions?: () => Promise<ReadonlyArray<FieldOption<OptionValue<F[K]['value']>>>>
+      }
+    : { deriveOptions?: never, loadOptions?: never })
 
 export function addRules<F extends AnyFields, R>(
   fields: F,

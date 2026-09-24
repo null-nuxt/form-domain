@@ -44,6 +44,24 @@ export interface FieldRule<TValue, TValues> {
    * a type error.
    */
   deriveOptions?: () => ReadonlyArray<FieldOption<OptionValue<TValue>>>
+  /**
+   * The list, fetched.
+   *
+   * What it reads BEFORE its first `await` is what it depends on — the same
+   * rule `watchEffect` follows — so asking for the cities of a state re-runs
+   * when the state changes, with nothing to declare:
+   *
+   * ```ts
+   * loadOptions: async () => {
+   *   const state = fields.state.value   // read here: this is the dependency
+   *   return state ? api.cities(state) : []
+   * }
+   * ```
+   *
+   * A slower answer about an older question never wins, and while it is in
+   * flight the field says so through `loadingOptions`.
+   */
+  loadOptions?: () => Promise<ReadonlyArray<FieldOption<OptionValue<TValue>>>>
   onChange?: (value: TValue, ctx: { patch: (values: Partial<TValues>) => void }) => void | Promise<void>
 }
 
@@ -75,6 +93,10 @@ export interface FieldObj<TValue, TValues = Record<string, unknown>, TDeclared =
   readonly meta: 'meta' extends keyof TDeclared ? TDeclared['meta' & keyof TDeclared] : undefined
   /** The static list from the declaration; a rule's list wins over it. */
   declaredOptions?: ReadonlyArray<FieldOption<OptionValue<TValue>>>
+  /** What `loadOptions` last brought back. */
+  loadedOptions?: ReadonlyArray<FieldOption<OptionValue<TValue>>>
+  /** Whether `loadOptions` is in flight — for an input that wants to say so. */
+  loadingOptions?: boolean
   /** Written by `addRule`. Read by the engine. */
   rule?: FieldRule<TValue, TValues>
   /**
@@ -121,6 +143,8 @@ interface ReactiveSource<TValue> {
   declaredOptions?: ReadonlyArray<FieldOption<OptionValue<TValue>>>
   rule?: FieldRule<TValue, Record<string, unknown>>
   groupCanShow?: () => boolean
+  loadedOptions?: ReadonlyArray<FieldOption<OptionValue<TValue>>>
+  loadingOptions?: boolean
   schema?: unknown
   error?: string
   readonly selected: SelectedOf<TValue>
@@ -145,7 +169,9 @@ const createField = <TValue>(input: FieldInput<TValue>): FieldObj<TValue> => {
      * are tracked.
      */
     get selected(): SelectedOf<TValue> {
-      const list = this.rule?.deriveOptions ? this.rule.deriveOptions() : this.declaredOptions
+      const list = this.rule?.deriveOptions
+        ? this.rule.deriveOptions()
+        : (this.loadedOptions ?? this.declaredOptions)
       const current: unknown = this.value
 
       // a multi-choice field: every option it holds, in the list's order

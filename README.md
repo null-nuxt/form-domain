@@ -13,7 +13,7 @@ yup 1.7+.
 
 **Declaring** · [Rules](#rules) · [Locked fields](#a-field-something-else-decides) · [Validation](#validation) · [`meta`](#meta-what-the-project-carries-on-a-field) · [Composing fragments](#composing-fragments) · [Module scope and SSR](#fields-at-module-scope-leak-under-ssr)
 
-**Rendering** · [`register()`](#register-builds-the-input-props) · [Extending it](#extending-register) · [Choices](#only-declared-choices-are-choices) · [The option's label](#the-options-label)
+**Rendering** · [`register()`](#register-builds-the-input-props) · [Extending it](#extending-register) · [Choices](#only-declared-choices-are-choices) · [Fetched lists](#a-list-that-has-to-be-fetched) · [The option's label](#the-options-label)
 
 **Sending** · [`payload`](#payload-what-leaves-for-the-backend) · [The attempt: `useFormSession`](#the-attempt-useformsession)
 
@@ -385,6 +385,44 @@ reaching the field, silently.
 
 A component that takes `value` and `onChange` instead of `v-model` is better
 served by a small adapter in the project, which stays explicit and fully typed.
+
+### A list that has to be fetched
+
+`deriveOptions` computes a list; `loadOptions` goes and gets one:
+
+```ts
+addRules(fields, {
+  city: {
+    loadOptions: async () => {
+      const state = fields.state.value    // read before the await: this is the dependency
+      return state ? api.cities(state) : []
+    },
+  },
+})
+```
+
+What the function reads **before its first `await`** is what re-runs it — the
+rule `watchEffect` already follows — so there is no dependency to declare and no
+trigger to wire.
+
+The rest is about answers arriving out of order, which is where hand-written
+versions of this go wrong. A slower answer to an older question loses to a newer
+one. While a list is in flight the field says so through `loadingOptions`, which
+a project maps onto its own component the way it maps anything else:
+
+```ts
+extendFormBindings(field => ({ loading: field.loadingOptions }))
+```
+
+A **failed** load changes nothing: the list it had stays, and so does the value,
+because a network that blinked should not empty a select. A **successful** one
+drops a value the new list no longer offers — a value the list cannot match is
+the exact failure the option check exists to prevent, and leaving it there gives
+a select with nothing selected and a schema that rejects what the user is
+looking at.
+
+Only a field that declared `options` can fetch them, the same gate `deriveOptions`
+has. A field with both gets the derived list, and says so in dev.
 
 ## Only declared choices are choices
 

@@ -105,6 +105,16 @@ addRules(withChoice, {
   state: { deriveOptions: () => [] },
 })
 
+/** Fetching a list is gated exactly like deriving one: only a declared choice has one. */
+addRules(withChoice, {
+  city: { loadOptions: async () => [{ label: 'Recife', value: 'recife' }] },
+})
+
+addRules(withChoice, {
+  // @ts-expect-error `state` never said it holds a choice, so it has no list to fetch
+  state: { loadOptions: async () => [] },
+})
+
 /**
  * The singular form gates it the same way. The same mistake must not compile
  * through one and fail through the other — which it did until this was pinned.

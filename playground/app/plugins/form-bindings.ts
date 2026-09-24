@@ -10,6 +10,7 @@ export default defineNuxtPlugin(() => {
   extendFormBindings(field => ({
     mask: field.meta?.mask,
     errorMessage: field.error,
+    loading: field.loadingOptions,
   }))
 })
 
@@ -17,5 +18,6 @@ declare module '#forms' {
   interface CustomFieldBindings {
     mask?: string
     errorMessage?: string
+    loading?: boolean
   }
 }

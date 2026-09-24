@@ -1,6 +1,7 @@
 import { computed, watch } from 'vue'
 import { shapeOf, validateShape } from './validate'
 import { isEditable, isVisible } from './visibility'
+import { loadOptionsFor } from './options'
 import { claimFields, releaseFields } from './claim'
 import { CONTRACT_KEYS, getBindingExtenders } from './bindings'
 import type { FieldValidationResult, ValidationResult } from '../standard'
@@ -79,12 +80,16 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
     return result as SelectedOptions<F>
   })
 
+  loadOptionsFor(fields, optionKeys)
+
   const options = computed(() => {
     const result: Record<string, ReadonlyArray<FieldOption<unknown>>> = {}
     for (const key of optionKeys) {
       const target = fields[key]!
-      // the rule wins over the list declared on the field
-      result[key] = target.rule?.deriveOptions ? target.rule.deriveOptions() : (target.declaredOptions ?? [])
+      // a rule's list wins over the declared one, derived before fetched
+      result[key] = target.rule?.deriveOptions
+        ? target.rule.deriveOptions()
+        : (target.loadedOptions ?? target.declaredOptions ?? [])
     }
     return result as { [K in keyof F]: ReadonlyArray<FieldOption<OptionValue<F[K]['value']>>> }
   })

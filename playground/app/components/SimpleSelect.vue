@@ -4,6 +4,8 @@ defineProps<{
   label: string
   modelValue: string
   options?: ReadonlyArray<{ label: string, value: string }>
+  loading?: boolean
+  disabled?: boolean
 }>()
 
 defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -15,11 +17,12 @@ defineEmits<{ 'update:modelValue': [value: string] }>()
     <select
       :name="name"
       :value="modelValue"
+      :disabled="disabled || loading"
       style="padding:.4rem; border:1px solid #d4d4d8; border-radius:.3rem"
       @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
     >
       <option value="">
-        —
+        {{ loading ? 'loading…' : '—' }}
       </option>
       <option
         v-for="option in options"
