@@ -493,8 +493,12 @@ policy for when it has earned the right to be shown:
 - **Nothing shows while the form is only being filled.** A message appears once
   sending was attempted, or once that field was visited — `touch(key)`, usually
   on blur.
-- **After that, the field answers again on every change**, so someone correcting
-  a mistake sees it go instead of waiting for the next submit.
+- **After that, the field answers again on every change** — and so does every
+  other field that has been asked about. A validator can be about more than its
+  own field (a confirmation that has to match, a date that has to come after
+  another), so fixing the password is what clears the message on the
+  confirmation. The field being typed in answers immediately; the others wait
+  for the typing to pause.
 - **A server's message lives until the value it spoke about changes.** Nothing
   local can recompute "already taken": surviving everything leaves the field red
   after the fix, and dying on the next keystroke means nobody reads it.

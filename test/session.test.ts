@@ -13,6 +13,9 @@ describe('useFormSession', () => {
   /** Validation is asynchronous, so a tick alone doesn't see the answer. */
   const settle = () => new Promise(resolve => setTimeout(resolve, 0))
 
+  /** Past the pause the session waits for before asking the other fields. */
+  const settleBurst = () => new Promise(resolve => setTimeout(resolve, 200))
+
   const buildForm = () => {
     const fields = refFields({
       name: { label: 'Name', value: '' },
@@ -75,6 +78,64 @@ describe('useFormSession', () => {
 
     expect(session.errorOf('name')).toBeUndefined()
     expect(form.fields.name.error).toBeUndefined()
+  })
+
+  const buildPair = () => {
+    const fields = refFields({
+      password: { label: 'Password', value: '' },
+      confirm: { label: 'Confirm', value: '' },
+    })
+
+    addSchemas(fields, {
+      password: string().required('Password is required'),
+      // a getter, so it is built again with whatever the other field holds now
+      confirm: () => string().oneOf([fields.password.value], 'Must match'),
+    })
+
+    return toForm(fields)
+  }
+
+  /**
+   * A validator can be about more than its own field, and then the field that
+   * has the message is not the one being typed in.
+   */
+  it('clears a message when the field it was about changes', async () => {
+    const form = buildPair()
+    const session = useFormSession(form)
+
+    form.set({ password: 'abc', confirm: 'abd' })
+    await session.submit(vi.fn())()
+    expect(session.errorOf('confirm')).toBe('Must match')
+
+    // fixing it from the OTHER side
+    form.set({ password: 'abd' })
+    await settleBurst()
+
+    expect(session.errorOf('confirm')).toBeUndefined()
+  })
+
+  it('raises one the same way, on a field already asked about', async () => {
+    const form = buildPair()
+    const session = useFormSession(form)
+
+    form.set({ password: 'abc', confirm: 'abc' })
+    await session.touch('confirm')
+    expect(session.errorOf('confirm')).toBeUndefined()
+
+    form.set({ password: 'changed' })
+    await settleBurst()
+
+    expect(session.errorOf('confirm')).toBe('Must match')
+  })
+
+  it('stays quiet about a field nobody has asked about yet', async () => {
+    const form = buildPair()
+    const session = useFormSession(form)
+
+    form.set({ password: 'abc', confirm: 'nope' })
+    await settleBurst()
+
+    expect(session.errors.value).toEqual({})
   })
 
   it('touch asks about one field and shows only that one', async () => {

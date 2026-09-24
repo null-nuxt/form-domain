@@ -164,29 +164,57 @@ export function useFormSession<Form extends SessionTarget>(form: Form): FormSess
     for (const key of keys) fields[key]!.error = messageFor(key)
   })
 
+  /** A field nobody has asked about yet has nothing to say. */
+  const askedAbout = (key: string) => attempts.value > 0 || touched.has(key)
+
+  const tickets = new Map<string, number>()
+
+  const answerAgain = async (key: string) => {
+    const ticket = (tickets.get(key) ?? 0) + 1
+    tickets.set(key, ticket)
+
+    const { errors: messages } = await form.validateField(key)
+
+    // a slower answer about an older value must not win
+    if (tickets.get(key) === ticket) keep(key, messages[0])
+  }
+
+  /**
+   * The others, once per burst rather than once per keystroke. They are asked
+   * because a validator can be about more than its own field — a confirmation
+   * that has to match, a date that has to come after another — and the field
+   * that says so is not the one being typed in. Whoever changed the value is
+   * answered straight away; the rest can wait for the typing to pause.
+   */
+  let pending: ReturnType<typeof setTimeout> | undefined
+
+  const answerTheOthers = (changed: string) => {
+    clearTimeout(pending)
+
+    pending = setTimeout(() => {
+      for (const key of keys) {
+        if (key !== changed && askedAbout(key)) void answerAgain(key)
+      }
+    }, 120)
+  }
+
+  if (getCurrentScope()) onScopeDispose(() => clearTimeout(pending))
+
   /**
    * Once a field has been asked about, it answers again on every change — which
    * is what lets someone fixing a mistake watch it go away. Before that, a form
    * being filled for the first time stays quiet.
    */
   for (const key of keys) {
-    let latest = 0
-
-    watch(() => fields[key]!.value, async () => {
-      if (attempts.value === 0 && !touched.has(key)) return
-
-      const ticket = ++latest
-      const { errors: messages } = await form.validateField(key)
-
-      // a slower answer about an older value must not win
-      if (ticket === latest) keep(key, messages[0])
+    watch(() => fields[key]!.value, () => {
+      if (askedAbout(key)) void answerAgain(key)
+      answerTheOthers(key)
     })
   }
 
   const touch = async (key: string) => {
     touched.add(key)
-    const { errors: messages } = await form.validateField(key)
-    keep(key, messages[0])
+    await answerAgain(key)
   }
 
   const payloadOf = () =>

@@ -17,6 +17,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `attempts`, whether a message is shown. Sessions also announce themselves per
   request, which is how the inspector finds them.
 
+### Changed
+
+- **A field's message is re-derived when a related field changes**, not only
+  when its own value does. A validator can be about more than the field it is
+  attached to, so correcting the password is what clears the message on the
+  confirmation — every field already asked about answers again, once per burst
+  of typing rather than once per keystroke.
+
 ### Fixed
 
 - **`declare module '#forms'` resolves in a project that imports nothing from
