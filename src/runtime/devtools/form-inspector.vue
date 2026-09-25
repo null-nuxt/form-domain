@@ -162,7 +162,7 @@ const show = (value: unknown) => {
                 {{ show(field.value) }}
               </td>
               <td style="padding:.3rem .5rem">
-                {{ field.shown ? 'yes' : 'no' }}
+                {{ field.shown ? 'yes' : `no (${field.hiddenBy})` }}
               </td>
               <td style="padding:.3rem .5rem">
                 {{ field.validated ? 'yes' : 'no' }}

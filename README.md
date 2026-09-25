@@ -11,7 +11,7 @@ yup 1.7+.
 
 **Why it looks like this** · [Why a setup and not a builder](#why-a-setup-and-not-a-builder) · [The names](#the-names-and-what-each-prefix-promises) · [Registration takes its target](#registration-takes-its-target)
 
-**Declaring** · [Rules](#rules) · [Locked fields](#a-field-something-else-decides) · [Validation](#validation) · [`meta`](#meta-what-the-project-carries-on-a-field) · [Composing fragments](#composing-fragments) · [Module scope and SSR](#fields-at-module-scope-leak-under-ssr)
+**Declaring** · [Rules](#rules) · [Group rules](#one-rule-for-a-group-of-fields) · [Locked fields](#a-field-something-else-decides) · [Validation](#validation) · [`meta`](#meta-what-the-project-carries-on-a-field) · [Composing fragments](#composing-fragments) · [Module scope and SSR](#fields-at-module-scope-leak-under-ssr)
 
 **Rendering** · [`register()`](#register-builds-the-input-props) · [Extending it](#extending-register) · [Choices](#only-declared-choices-are-choices) · [Fetched lists](#a-list-that-has-to-be-fetched) · [The option's label](#the-options-label)
 
@@ -207,6 +207,41 @@ hidden field usually needs to keep what the user typed.
 `onChange` writes through `ctx.patch()`, which is a **request**: the engine only
 applies it if that invocation is still the most recent one, so a slow lookup
 can't overwrite newer input.
+
+### One rule for a group of fields
+
+A whole section that only applies sometimes is one rule, not one per field:
+
+```ts
+const address = defineFields({
+  street: { label: 'Street', value: '' },
+  number: { label: 'Number', value: '' },
+  city: { label: 'City', value: '' },
+})
+
+addGroupRule(fields, address, {
+  canShow: () => isCompany.value,
+  clearWhenHidden: true,
+})
+```
+
+The target is the fields it covers: the **fragment that declares them**, or a
+list of keys — `addGroupRule(fields, ['street', 'city'], { ... })` — both checked
+against the form, so a key it does not have fails to compile.
+
+Prefer the fragment where there is one. Membership then follows the
+declaration: a field added to it joins the group without anyone remembering to
+say so, which is the mistake this exists to remove.
+
+A group says `canShow`, `canEdit` and `clearWhenHidden`, and nothing else. A
+derived list, a fetched one, a reaction to a change are about one field and one
+value; letting them in here would invite writing something that cannot work.
+
+It does not replace what a field says about itself. **The field's own rule and
+every group it is in all have to agree** before it shows, so "the address section
+is for companies" and "the complement only applies to flats" are both true
+without either being written twice. A wizard step is a group like any other, so
+a field inside a step and inside a section answers to both.
 
 ### A field something else decides
 
@@ -941,6 +976,7 @@ rest, so the wizard would walk in an order nobody wrote.
 | two fragments declaring the same field | **compile time** |
 | two steps declaring the same field | **compile time** |
 | `addStepRules` naming a step that doesn't exist | **compile time** |
+| `addGroupRule` naming a field the form doesn't have | **compile time** |
 | `setErrors` naming a field that doesn't exist | **compile time** |
 | `goTo()` naming a step that doesn't exist | **compile time** |
 | `deriveOptions` on a field that declared no options | **compile time** |
@@ -962,6 +998,7 @@ refSteps({ who: { ... } })        // one tree out of the steps, plus where in it
 
 addRule(field, rule)              // behaviour for one field
 addRules(fields, { ... })         // for several, keyed
+addGroupRule(fields, keys, rule)  // one rule for a whole section
 addSchema(field, validator)       // validation for one
 addSchemas(fields, { ... })       // for several
 addStepRules(steps, { ... })      // when a step applies at all

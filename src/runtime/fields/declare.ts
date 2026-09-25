@@ -66,6 +66,23 @@ export interface FieldRule<TValue, TValues> {
 }
 
 /**
+ * What a group says about the fields in it.
+ *
+ * Only the questions that mean something for a set of fields at once. A derived
+ * list, a fetched one, a reaction to a change — those are about one field and
+ * one value, and letting them in here would invite writing something that
+ * cannot work.
+ */
+export interface GroupRule {
+  /** Whether this part of the form applies at all. Hidden takes its fields out of validation. */
+  canShow?: () => boolean
+  /** Whether it can be typed in. Unlike hiding, a locked group is still validated. */
+  canEdit?: () => boolean
+  /** Resets the fields to their initial values once the group is hidden. */
+  clearWhenHidden?: boolean
+}
+
+/**
  * A live field: reactive `value` plus the declaration, plus the slots the
  * registration functions write into.
  *
@@ -100,14 +117,16 @@ export interface FieldObj<TValue, TValues = Record<string, unknown>, TDeclared =
   /** Written by `addRule`. Read by the engine. */
   rule?: FieldRule<TValue, TValues>
   /**
-   * Written by `addStepRules`: the group this field belongs to — a wizard step
-   * — can be skipped, and a field in a skipped group is hidden with it.
+   * The groups this field belongs to — a wizard step, a section of the form.
+   * Written by `addGroupRule` and `addStepRules`.
    *
    * A slot of its own rather than the rule's `canShow`, because the two answer
    * different questions and a field has one rule: "does this field apply" is
-   * the field's, "does this part of the form apply at all" is the group's.
+   * the field's, "does this part of the form apply at all" is the group's. A
+   * list, because a field can be in a step AND in a section inside it, and
+   * every one of them has to agree before it shows.
    */
-  groupCanShow?: () => boolean
+  groups?: GroupRule[]
   /** Written by `addSchema`. A getter when the validator depends on state. */
   schema?: unknown
   /**
@@ -153,7 +172,7 @@ interface ReactiveSource<TValue> {
   readonly meta: Record<string, unknown> | undefined
   declaredOptions?: ReadonlyArray<FieldOption<OptionValue<TValue>>>
   rule?: FieldRule<TValue, Record<string, unknown>>
-  groupCanShow?: () => boolean
+  groups?: GroupRule[]
   loadedOptions?: ReadonlyArray<FieldOption<OptionValue<TValue>>>
   loadingOptions?: boolean
   schema?: unknown

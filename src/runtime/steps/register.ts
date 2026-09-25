@@ -1,5 +1,6 @@
 import { conditionsOf } from './create'
 import type { StepsController, StepsInput } from './create'
+import type { GroupRule } from '../fields/declare'
 import type { AnyFields, OnlyKnownKeys } from '../types'
 
 /**
@@ -51,15 +52,21 @@ export function addStepRules<T extends StepsInput, R>(
       )
     }
 
-    conditions.set(name, canShow)
+    const previous = conditions.get(name)
+    const group: GroupRule = { canShow }
+    conditions.set(name, group)
 
     /**
-     * Written onto the fields as well, because "hidden" has one meaning here:
-     * the engine asks the field, and the field now knows its step can be off.
+     * A step is a group of fields, so it says so where every other group does:
+     * on the fields. The engine asks the field, and the field knows the step it
+     * belongs to can be off.
      */
     for (const key of steps.keysOf(name as keyof T & string)) {
       const field = (steps.fields as AnyFields)[key]
-      if (field) field.groupCanShow = canShow
+      if (!field) continue
+
+      // replaced rather than mutated, so the reactive write reaches what is watching
+      field.groups = [...(field.groups ?? []).filter(entry => entry !== previous), group]
     }
   }
 }

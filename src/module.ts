@@ -149,6 +149,7 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         { name: 'refSteps', from: resolver.resolve('./runtime/steps/create') },
         { name: 'addStepRules', from: resolver.resolve('./runtime/steps/register') },
         { name: 'useFormSession', from: resolver.resolve('./runtime/session/create') },
+        { name: 'addGroupRule', from: resolver.resolve('./runtime/fields/register') },
         { name: 'addRule', from: resolver.resolve('./runtime/fields/register') },
         { name: 'addRules', from: resolver.resolve('./runtime/fields/register') },
         { name: 'addSchema', from: resolver.resolve('./runtime/fields/register') },

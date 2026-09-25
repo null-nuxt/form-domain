@@ -6,7 +6,20 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **`addGroupRule(fields, target, rule)`**, one rule for a whole section of the
+  form: `canShow`, `canEdit`, `clearWhenHidden`, over the fragment that declares
+  the fields or over a list of their keys. Given a fragment, membership follows
+  the declaration — a field added to it joins the group without anyone
+  remembering to say so.
+
+### Changed
+
+- **A field can be in more than one group.** What a step wrote is now one entry
+  in a list the field carries, so a field inside a step and inside a section
+  answers to both, and its own rule still has its say: all of them have to agree
+  before it shows. The inspector says which of the two is holding a field down.
 
 ## 0.3.0 — 2026-09-24
 

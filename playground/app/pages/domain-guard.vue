@@ -195,6 +195,26 @@ addRules(withLocked, { city: { canEdit: () => withLocked.postcode.value !== '' }
 const locked: boolean | undefined = toForm(withLocked).register('city').disabled
 void locked
 
+/**
+ * A group takes the keys it covers, or the fragment that declares them — and
+ * either way the form has to have them.
+ */
+const grouped = refFields({
+  kind: { label: 'Kind', value: '' },
+  street: { label: 'Street', value: '' },
+  city: { label: 'City', value: '' },
+})
+
+addGroupRule(grouped, ['street', 'city'], { canShow: () => grouped.kind.value !== '' })
+
+// @ts-expect-error there is no such field in this form
+addGroupRule(grouped, ['street', 'doesNotExist'], { canShow: () => true })
+
+addGroupRule(grouped, { street: { label: 'Street', value: '' } }, { canEdit: () => false })
+
+// @ts-expect-error the fragment names a field this form doesn't have
+addGroupRule(grouped, { doesNotExist: { label: 'No', value: '' } }, { canEdit: () => false })
+
 /** `selected` comes off the engine, with no need for the raw fields. */
 const chosen: string | undefined = form.selected.value.profile?.label
 void chosen

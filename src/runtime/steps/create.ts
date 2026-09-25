@@ -3,7 +3,7 @@ import { refFields } from '../fields/declare'
 import { shapeOf, validateShape } from '../engine/validate'
 import { isVisible } from '../engine/visibility'
 import type { ComputedRef } from 'vue'
-import type { BuiltFields, CheckedFields, FieldsInput, ValueOfSource } from '../fields/declare'
+import type { BuiltFields, CheckedFields, FieldsInput, GroupRule, ValueOfSource } from '../fields/declare'
 import type { ValidationResult } from '../standard'
 import type { AnyFields, Prettify } from '../types'
 
@@ -60,10 +60,10 @@ type AtLeastOneStep<T> = [keyof T] extends [never]
  * Each controller's step conditions, kept outside it so `addStepRules` can
  * write where the navigation reads without the map becoming public API.
  */
-const stepConditions = new WeakMap<object, Map<string, () => boolean>>()
+const stepConditions = new WeakMap<object, Map<string, GroupRule>>()
 
 /** Internal, for `addStepRules`: the conditions of a controller built here. */
-export const conditionsOf = (controller: object): Map<string, () => boolean> | undefined =>
+export const conditionsOf = (controller: object): Map<string, GroupRule> | undefined =>
   stepConditions.get(controller)
 
 /** Where the wizard is, and what it takes to leave. */
@@ -159,11 +159,11 @@ export const refSteps = <T extends StepsInput>(
    * to reach a `canShow` that something already computed. A field's rule lands
    * on a reactive field and gets this for free; this map had to ask.
    */
-  const conditions = shallowReactive(new Map<string, () => boolean>())
+  const conditions = shallowReactive(new Map<string, GroupRule>())
 
   const canShow = computed(() => {
     const result = {} as Record<keyof T & string, boolean>
-    for (const name of names) result[name] = conditions.get(name)?.() !== false
+    for (const name of names) result[name] = conditions.get(name)?.canShow?.() !== false
 
     return result
   })

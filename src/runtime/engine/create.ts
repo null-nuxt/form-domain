@@ -103,10 +103,14 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
    */
   watch(canShow, (current, previous) => {
     for (const key of keys) {
-      if (!fields[key]!.rule?.clearWhenHidden) continue
-      if (current[key] === false && previous?.[key] !== false) {
-        fields[key]!.value = initialValues[key]
-      }
+      const field = fields[key]!
+
+      // asked for by the field, or by a group it is in — a whole section going away
+      const clears = field.rule?.clearWhenHidden
+        || (field.groups ?? []).some(group => group.clearWhenHidden)
+
+      if (!clears) continue
+      if (current[key] === false && previous?.[key] !== false) field.value = initialValues[key]
     }
   })
 

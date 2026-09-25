@@ -1,7 +1,7 @@
 import { markRaw } from 'vue'
 import { isStandardSchema } from '../standard'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
-import type { FieldObj, FieldRule } from './declare'
+import type { FieldObj, FieldRule, GroupRule } from './declare'
 import type { AnyFields, FieldOption, HasOptions, OnlyKnownKeys, OptionValue, ValuesOf } from '../types'
 
 /**
@@ -111,5 +111,46 @@ export function addSchemas<F extends AnyFields, S>(
   for (const [key, schema] of Object.entries(schemas as Record<string, unknown>)) {
     const target = fields[key]
     if (target && schema) addSchema(target, schema as SchemaSource)
+  }
+}
+
+/**
+ * One rule for several fields at once — a section of the form that applies only
+ * sometimes, or is filled in by something else.
+ *
+ * The target is the fields it covers: a list of keys, or a declaration fragment,
+ * in which case every field in the fragment is in the group. The fragment is
+ * worth preferring where there is one, because then membership follows the
+ * declaration: a field added to it joins the group without anyone remembering
+ * to say so.
+ *
+ * It does not replace what a field says about itself. A field's own rule and
+ * every group it belongs to all have to agree before it shows, so "the address
+ * section is for companies" and "the complement only applies to flats" can both
+ * be true without either being written twice.
+ */
+export function addGroupRule<F extends AnyFields>(
+  fields: F,
+  keys: ReadonlyArray<keyof F & string>,
+  rule: GroupRule,
+): void
+export function addGroupRule<F extends AnyFields, T>(
+  fields: F,
+  fragment: T & OnlyKnownKeys<T, keyof F & string>,
+  rule: GroupRule,
+): void
+export function addGroupRule(
+  fields: AnyFields,
+  target: ReadonlyArray<string> | object,
+  rule: GroupRule,
+): void {
+  const keys = Array.isArray(target) ? target : Object.keys(target)
+
+  for (const key of keys) {
+    const field = fields[key]
+    if (!field) continue
+
+    // replaced rather than pushed into, so the reactive write reaches what is watching
+    field.groups = [...(field.groups ?? []), rule]
   }
 }

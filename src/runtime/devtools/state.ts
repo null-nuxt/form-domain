@@ -8,8 +8,10 @@ export interface InspectedField {
   key: string
   label: string
   value: unknown
-  /** False when a rule — or a step being skipped — is hiding it. */
+  /** False when a rule — or a group it is in — is hiding it. */
   shown: boolean
+  /** Which of the two, when it is hidden: its own rule, or a group. */
+  hiddenBy?: 'rule' | 'group'
   /** Whether it is in `shape` right now, which is what `validate()` will ask about. */
   validated: boolean
   /** Which of the rule's parts were attached: `canShow`, `deriveOptions`… */
@@ -104,6 +106,9 @@ export const inspectForms = (host?: Record<string, unknown> | null): InspectedFo
       label: field.label,
       value: field.value,
       shown: isVisible(field),
+      hiddenBy: isVisible(field)
+        ? undefined
+        : (field.rule?.canShow?.() === false ? 'rule' : 'group'),
       validated: shape.includes(key),
       rule: ruleParts(field.rule as Record<string, unknown> | undefined),
       options: optionCount(field),
