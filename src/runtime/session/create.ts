@@ -51,11 +51,18 @@ interface StepsTarget {
   next(gate?: () => boolean | Promise<boolean>): Promise<ValidationResult<unknown>>
 }
 
+/** What the form holds, which is not what `.payload()` projects out of it. */
+type ValuesOf<Form> = Form extends { values: ComputedRef<infer V> } ? V : never
+
 /** The step that is being left, and what it holds. */
 interface StepContext<Form> {
   step: Form extends { steps: { names: ReadonlyArray<infer TName> } } ? TName : string
-  /** Only the keys that step declared. */
-  values: Partial<PayloadOf<Form>>
+  /**
+   * Only the keys that step declared — the field values, never the payload. A
+   * domain that declares `.payload()` projects the WHOLE form for the submit;
+   * a step is a part of it, so it hands over what it holds.
+   */
+  values: Partial<ValuesOf<Form>>
 }
 
 /** A wizard's `next` is part of the session only when the form has steps. */

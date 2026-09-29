@@ -8,6 +8,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A step's handler is given the values it holds, not the payload.** In a
+  domain that declares `.payload()`, `session.next(handler)` promised the
+  projection and passed the step's fields, so reading anything out of it meant
+  going around the handler to `form.fields`. The payload is a projection of the
+  whole form and belongs to the submit; a step hands over its part of it.
+
 - **A fragment declared on its own keeps the literals its options were written
   with.** `options: [{ value: 'CPF' }]` widened to `string` the moment the
   declaration was stored in a variable, so the option check had nothing left to

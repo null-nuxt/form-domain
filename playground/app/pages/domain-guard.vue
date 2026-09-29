@@ -410,6 +410,27 @@ void documentKind
 // a lone literal is an example value, so the field still takes any string
 fromFragment.holder.value = 'anyone'
 
+/**
+ * A step hands its handler the values it holds — never the payload, which is a
+ * projection of the WHOLE form and belongs to the submit.
+ */
+const paidDomain = defineFormDomain('guard-step-values', () => {
+  const paidSteps = refSteps({ who: { fullName: { label: 'Name', value: '' } } })
+  return { fields: paidSteps.fields, steps: paidSteps }
+}).payload(() => ({ projected: 1 }))
+
+const paidSession = useFormSession(paidDomain())
+
+void paidSession.next(({ values }) => {
+  const fromTheStep: string | undefined = values.fullName
+  void fromTheStep
+})
+
+void paidSession.next(({ values }) => {
+  // @ts-expect-error the step holds fields; `projected` only exists in the payload
+  void values.projected
+})
+
 /** A standalone field sits next to the declarations and keeps its precision. */
 const sharedCpf = refField({ label: 'CPF', value: '', meta: { mask: 'cpf' } })
 const withStandalone = toForm(refFields({ cpf: sharedCpf, name: { label: 'Name', value: '' } }))

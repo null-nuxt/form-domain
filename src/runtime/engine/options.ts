@@ -15,6 +15,7 @@ const chosen = (value: unknown): unknown[] => (Array.isArray(value) ? value : [v
 const dropWhatIsGone = (
   field: { value: unknown },
   list: ReadonlyArray<FieldOption<unknown>>,
+  initial: unknown,
 ) => {
   const offered = new Set(list.map(option => option.value))
 
@@ -26,7 +27,13 @@ const dropWhatIsGone = (
 
   const [value] = chosen(field.value)
   if (value === undefined || value === null || value === '') return
-  if (!offered.has(value)) field.value = Array.isArray(field.value) ? [] : ''
+
+  /**
+   * Back to what the field was declared with, not to an empty string. A field
+   * declared `null` means "nothing chosen"; emptying it to `''` hands a schema
+   * a string it is happy to accept, and the form passes with nothing selected.
+   */
+  if (!offered.has(value)) field.value = initial
 }
 
 /**
@@ -46,6 +53,9 @@ export const loadOptionsFor = (fields: AnyFields, keys: readonly string[]): void
   for (const key of keys) {
     const field = fields[key]!
     if (!field.rule?.loadOptions) continue
+
+    // read before anything has been fetched: what the declaration asked for
+    const initial = field.value
 
     if (field.rule.deriveOptions && import.meta.dev) {
       console.warn(
@@ -69,7 +79,7 @@ export const loadOptionsFor = (fields: AnyFields, keys: readonly string[]): void
         if (ticket !== latest) return
 
         field.loadedOptions = list
-        dropWhatIsGone(field, list)
+        dropWhatIsGone(field, list, initial)
       }
       catch (error) {
         if (ticket !== latest) return

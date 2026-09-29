@@ -116,6 +116,36 @@ describe('options that are fetched', () => {
     expect(fields.city.value).toBe('')
   })
 
+  /**
+   * Back to what it was declared with. A field declared `null` means "nothing
+   * chosen"; emptying it to `''` hands `z.string()` a value it accepts, and the
+   * form passes with nothing selected.
+   */
+  it('puts back what the field started with, not an empty string', async () => {
+    const fields = refFields({
+      state: { label: 'State', value: '' },
+      city: { label: 'City', value: null as string | null, options: [] },
+    })
+
+    addRules(fields, {
+      city: {
+        loadOptions: async () => fields.state.value === 'PE'
+          ? [{ label: 'Recife', value: 'recife' }]
+          : [{ label: 'Santos', value: 'santos' }],
+      },
+    })
+
+    toForm(fields)
+    fields.state.value = 'PE'
+    await wait(0)
+
+    fields.city.value = 'recife'
+    fields.state.value = 'SP'
+    await wait(0)
+
+    expect(fields.city.value).toBeNull()
+  })
+
   /** A network that blinked should not empty a select. */
   it('keeps the list it had when loading fails', async () => {
     const fields = build()
