@@ -388,6 +388,28 @@ defineFields({
   quantity: { label: 'Quantity', value: '', options: [{ label: 'One', value: 1 }] },
 })
 
+/**
+ * A fragment declared on its own keeps the literals its options were written
+ * with — without them the option check has nothing to compare against, and the
+ * declaration has to be repeated inline or frozen with `as const`.
+ */
+const documents = defineFields({
+  kind: {
+    label: 'Kind',
+    value: '' as 'CPF' | 'CNPJ' | '',
+    options: [{ label: 'CPF', value: 'CPF' }, { label: 'CNPJ', value: 'CNPJ' }],
+  },
+  holder: { label: 'Holder', value: '' },
+})
+
+const fromFragment = refFields(mergeFields([documents]))
+
+const documentKind: 'CPF' | 'CNPJ' | '' = fromFragment.kind.value
+void documentKind
+
+// a lone literal is an example value, so the field still takes any string
+fromFragment.holder.value = 'anyone'
+
 /** A standalone field sits next to the declarations and keeps its precision. */
 const sharedCpf = refField({ label: 'CPF', value: '', meta: { mask: 'cpf' } })
 const withStandalone = toForm(refFields({ cpf: sharedCpf, name: { label: 'Name', value: '' } }))

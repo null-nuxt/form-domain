@@ -6,6 +6,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **A fragment declared on its own keeps the literals its options were written
+  with.** `options: [{ value: 'CPF' }]` widened to `string` the moment the
+  declaration was stored in a variable, so the option check had nothing left to
+  compare against and refused it — the declaration had to be repeated inline or
+  frozen with `as const`. `defineFields` reads it as written now, and widens
+  only the field's own value, which is an example rather than a constraint.
+
 ### Added
 
 - **`addGroupRule(fields, target, rule)`**, one rule for a whole section of the

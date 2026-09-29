@@ -374,8 +374,34 @@ export const mergeFields = <T extends readonly FieldsInput[]>(
  * work. This is for a fragment meant to be reused, where the mistake would
  * otherwise surface far from the file that made it.
  */
-export const defineFields = <T extends FieldsInput>(declaration: T & CheckedFields<T>): T =>
-  declaration as T
+export const defineFields = <const T extends FieldsInput>(
+  declaration: T & CheckedFields<T>,
+): Declared<T> => declaration as unknown as Declared<T>
+
+/** Whether a type is a union, which is how a written-out choice is told from a lone literal. */
+type IsUnion<T, U = T> = [T] extends [never]
+  ? false
+  : (T extends unknown ? ([U] extends [T] ? false : true) : never)
+
+/**
+ * A lone literal is an example, not a constraint: `value: ''` means the field
+ * holds a string, while `value: '' as 'CPF' | ''` means it holds one of those.
+ *
+ * The declaration is read with `const` so an option's value keeps the literal
+ * the check needs — without it, `options: [{ value: 'CPF' }]` widens to `string`
+ * the moment it is stored in a variable, and the field it belongs to can no
+ * longer be matched against it. Widening the value back here is the other half:
+ * `const` would otherwise pin the field to the one string it was declared with.
+ */
+type Widened<V> = IsUnion<V> extends true
+  ? V
+  : V extends string ? string : V extends number ? number : V
+
+export type Declared<T> = {
+  [K in keyof T]: T[K] extends { value: infer V }
+    ? Omit<T[K], 'value'> & { value: Widened<V> }
+    : T[K]
+}
 
 /**
  * The form's fields, named. This is where a field learns its own key, so the
