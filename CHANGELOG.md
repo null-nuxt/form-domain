@@ -8,6 +8,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A value dropped because its list changed goes back to what the field was
+  declared with**, instead of to an empty string. A field declared `null` means
+  "nothing chosen"; emptied to `''` it hands a string schema a value it accepts,
+  and the form passes with nothing selected.
+
 - **A step's handler is given the values it holds, not the payload.** In a
   domain that declares `.payload()`, `session.next(handler)` promised the
   projection and passed the step's fields, so reading anything out of it meant
