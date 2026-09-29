@@ -56,6 +56,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **A session is shared by everything looking at the same form.** It used to
+  belong to whoever called `useFormSession`, so splitting a form across
+  components split what it knew about the attempt — which is exactly the reason
+  not to split it. The form is recognised by its fields, so a page handing along
+  `{ ...form, steps }` gets the same one, and the session lives in a scope of its
+  own until the last holder's scope ends.
+
 - **A field can be in more than one group.** What a step wrote is now one entry
   in a list the field carries, so a field inside a step and inside a section
   answers to both, and its own rule still has its say: all of them have to agree

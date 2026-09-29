@@ -127,6 +127,51 @@ describe('useFormSession', () => {
     expect(form.fields.email.error).toBeUndefined()
   })
 
+  /**
+   * A form split across components is one form. Two of them asking for its
+   * session and getting two different ones is what stops it being split at all.
+   */
+  it('is one session per form', async () => {
+    const form = buildForm()
+
+    const inThePage = useFormSession(form)
+    const inAChild = useFormSession(form)
+
+    expect(inAChild).toBe(inThePage)
+
+    await inThePage.submit(vi.fn())()
+
+    expect(inAChild.errorOf('name')).toBe('Name is required')
+  })
+
+  /** A page handing steps along builds a new object every call; the form is the same. */
+  it('recognises the form by its fields, not by what was handed in', () => {
+    const form = buildForm()
+
+    expect(useFormSession({ ...form })).toBe(useFormSession({ ...form }))
+  })
+
+  it('gives a different form a different session', () => {
+    expect(useFormSession(buildForm())).not.toBe(useFormSession(buildForm()))
+  })
+
+  /** The first component to ask must not take the session with it when it goes. */
+  it('lives until the last holder leaves', () => {
+    const form = buildForm()
+
+    const page = effectScope()
+    const child = effectScope()
+
+    page.run(() => useFormSession(form))
+    child.run(() => useFormSession(form))
+
+    child.stop()
+    expect(form.fields.name.touch).toBeTypeOf('function')
+
+    page.stop()
+    expect(form.fields.name.touch).toBeUndefined()
+  })
+
   const buildPair = () => {
     const fields = refFields({
       password: { label: 'Password', value: '' },

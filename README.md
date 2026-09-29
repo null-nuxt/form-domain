@@ -655,6 +655,17 @@ no stray attribute — and with no session in the page, `field.touch` is
 `session.touch(key)` is still there for wiring it by hand where that reads
 better.
 
+### One session per form
+
+Two components asking for the session of the same form get the same one, so a
+form can be split across components without splitting what it knows about the
+attempt — which field is wrong, what has been visited, whether a submit is in
+flight. The form is recognised by its fields, so a page that hands along
+`{ ...form, steps }` still gets the one session.
+
+It lives until the last holder's scope ends, in a scope of its own: the first
+component to ask for it must not take the watchers with it when it unmounts.
+
 ### With a wizard
 
 A form that exposes `steps` gives its session a `next()`: it validates the

@@ -1,6 +1,7 @@
-import { computed, getCurrentScope, onScopeDispose, ref, shallowReactive, watch, watchEffect } from 'vue'
+import { computed, effectScope, getCurrentScope, onScopeDispose, ref, shallowReactive, watch, watchEffect } from 'vue'
 import { isVisible } from '../engine/visibility'
 import { getFormSessions } from './registry'
+import { perRequest } from '../request'
 import type { ComputedRef } from 'vue'
 import type { AnyFields } from '../types'
 import type { ValidationResult } from '../standard'
@@ -126,7 +127,7 @@ export type FormSession<Form> = {
  * prop, is the project's call through `extendFormBindings`, the same way
  * `meta.mask` is: an input that declares nothing receives nothing.
  */
-export function useFormSession<Form extends SessionTarget>(form: Form): FormSession<Form> {
+function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form> {
   const fields = form.fields as AnyFields
   const keys = Object.keys(fields)
 
@@ -346,4 +347,56 @@ export function useFormSession<Form extends SessionTarget>(form: Form): FormSess
     next,
     // assembled loosely; FormSession is the contract it is typed against
   } as unknown as FormSession<Form>
+}
+
+interface Held {
+  session: unknown
+  /** How many scopes are using it. The last one out stops it. */
+  holders: number
+  stop: () => void
+}
+
+/**
+ * One session per form, per request.
+ *
+ * Keyed on the fields rather than on what was handed in: a page that passes
+ * `{ ...form, steps }` builds a new object every call, and two components doing
+ * that are still looking at one form. The fields ARE the form's identity.
+ */
+const heldSessions = perRequest('__nuxt_forms_held_sessions__', () => new WeakMap<object, Held>())
+
+export function useFormSession<Form extends SessionTarget>(form: Form): FormSession<Form> {
+  const held = heldSessions()
+  const existing = held.get(form.fields)
+
+  if (existing) {
+    hold(existing)
+    return existing.session as FormSession<Form>
+  }
+
+  /**
+   * A scope of its own, not the caller's. A form split across components is
+   * the reason this is shared at all, and the first component to ask for it
+   * unmounting must not take the watchers with it.
+   */
+  const scope = effectScope(true)
+  const session = scope.run(() => buildSession(form))!
+
+  const entry: Held = { session, holders: 0, stop: () => scope.stop() }
+  held.set(form.fields, entry)
+  hold(entry)
+
+  return session
+}
+
+/** Counts one more user of a session, and releases it when the last one goes. */
+const hold = (entry: Held) => {
+  entry.holders += 1
+
+  if (!getCurrentScope()) return
+
+  onScopeDispose(() => {
+    entry.holders -= 1
+    if (entry.holders === 0) entry.stop()
+  })
 }

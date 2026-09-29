@@ -15,8 +15,8 @@ export interface RegisteredSession {
 /**
  * The sessions alive right now, per request.
  *
- * A session belongs to whoever created it, so this is a list and not a map: two
- * components may each hold one over the same domain, and neither is the real
- * one. They leave when their scope does.
+ * One per form — a form split across components is one form — and each leaves
+ * when the last thing holding it does. A list rather than a map because what is
+ * watching wants to read them all, not look one up.
  */
 export const getFormSessions = perRequest('__nuxt_forms_sessions__', () => shallowReactive(new Set<RegisteredSession>()))
