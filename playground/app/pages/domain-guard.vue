@@ -421,6 +421,20 @@ void onlyTheDocument.kind.value
 // @ts-expect-error `holder` was left out of the pick
 void onlyTheDocument.holder
 
+/** The same fragment twice: the prefixed copy is a different set of keys. */
+const twoAddresses = refFields(mergeFields([
+  { zip: { label: 'Postcode', value: '' } },
+  prefixFields('company', { zip: { label: 'Postcode', value: '' } }),
+]))
+
+const homeZip: string = twoAddresses.zip.value
+const companyZip: string = twoAddresses.companyZip.value
+void homeZip
+void companyZip
+
+// @ts-expect-error the prefix renamed it, so the old name is gone from the copy
+void prefixFields('company', { zip: { label: 'Postcode', value: '' } }).zip
+
 /**
  * A step hands its handler the values it holds — never the payload, which is a
  * projection of the WHOLE form and belongs to the submit.

@@ -841,6 +841,22 @@ export const address = defineFields({
 const fields = refFields(mergeFields([customer, address]))
 ```
 
+`prefixFields` puts the same fragment in a form twice — two addresses, a
+billing block beside a delivery one:
+
+```ts
+refFields(mergeFields([
+  address,
+  prefixFields('company', address, { label: label => `Company ${label.toLowerCase()}` }),
+]))
+// zip, street, companyZip, companyStreet
+```
+
+Keys only, and labels when you ask, because the second block rarely wants the
+first one's wording. What it does **not** carry across is the fragment's rules:
+a rule names the keys it reads and writes, and those are the unprefixed ones, so
+a fragment that ships rules still takes the names to use.
+
 `pickFields` and `omitFields` take part of one, because a fragment is a unit of
 reuse and not always a unit of layout — the customer block is one thing to
 declare and two things to show, with the document in the first step of a wizard
@@ -1035,6 +1051,7 @@ rest, so the wizard would walk in an order nobody wrote.
 ```ts
 defineFields({ name: { ... } })   // a declaration in its own file, checked there
 mergeFields([a, b])               // declaration fragments into one
+prefixFields('company', frag)     // the same fragment under its own names
 pickFields(fragment, ['a'])       // part of one, as a declaration
 omitFields(fragment, ['a'])       // everything except
 refField({ label, value })        // one field, reusable across domains

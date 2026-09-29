@@ -447,6 +447,44 @@ export const omitFields = <T extends FieldsInput, const K extends keyof T>(
   return result as Omit<T, K>
 }
 
+/** The same declaration under names of its own: `street` becomes `companyStreet`. */
+export type Prefixed<P extends string, T> = {
+  [K in keyof T & string as `${P}${Capitalize<K>}`]: T[K]
+}
+
+/**
+ * The same fragment again, under its own names.
+ *
+ * A form with two addresses had to copy the declaration and rename every field
+ * by hand, which is the duplication fragments exist to remove — and the copy
+ * drifts, because the second one is edited when the first one is not.
+ *
+ * Keys only. The labels a form shows are usually not the same for the second
+ * block ("Street" and "Company street"), so `label` takes a function when they
+ * differ and is left alone when they don't.
+ *
+ * What it does NOT carry across is the fragment's rules. A rule names the keys
+ * it reads and writes, and those keys are the unprefixed ones — for now a
+ * fragment that ships rules takes the names to use, the way it always did.
+ */
+export const prefixFields = <const P extends string, T extends FieldsInput>(
+  prefix: P,
+  fields: T,
+  options?: { label?: (label: string, key: string) => string },
+): Prefixed<P, T> => {
+  const result: Record<string, unknown> = {}
+
+  for (const [key, field] of Object.entries(fields)) {
+    const renamed = `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}`
+
+    result[renamed] = options?.label && !isField(field) && typeof field.label === 'string'
+      ? { ...field, label: options.label(field.label, key) }
+      : field
+  }
+
+  return result as Prefixed<P, T>
+}
+
 /**
  * The form's fields, named. This is where a field learns its own key, so the
  * template never repeats the name next to the field.

@@ -32,6 +32,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`prefixFields`**, for the same fragment twice in one form — two addresses, a
+  billing block beside a delivery one. It renames the keys and, when asked, the
+  labels, since the second block rarely wants the first one's wording. It does
+  not carry the fragment's rules across: a rule names the keys it reads and
+  writes, and those are the unprefixed ones.
+
 - **`session.reset()`**, which puts the form back to its declared values and
   forgets the attempt — no messages, nothing visited, no submit counted.
   Starting over was three calls in every composable that had a form.

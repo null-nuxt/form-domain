@@ -1,7 +1,7 @@
 import { isReactive, nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { addRule, addRules } from '../src/runtime/fields/register'
-import { defineFields, mergeFields, omitFields, pickFields, refField, refFields } from '../src/runtime/fields/declare'
+import { defineFields, mergeFields, omitFields, pickFields, prefixFields, refField, refFields } from '../src/runtime/fields/declare'
 import { refSteps } from '../src/runtime/steps/create'
 import { toForm } from '../src/runtime/domain/define'
 import type { PersonType } from './support/fields'
@@ -92,6 +92,37 @@ describe('pickFields and omitFields', () => {
     omitFields(customer, ['cpf'])
 
     expect(Object.keys(customer)).toEqual(['cpf', 'name', 'email'])
+  })
+})
+
+describe('prefixFields', () => {
+  const address = defineFields({
+    zip: { label: 'Postcode', value: '' },
+    street: { label: 'Street', value: '' },
+  })
+
+  /** The case it exists for: the same block twice in one form. */
+  it('puts the same fragment in a form twice', () => {
+    const fields = refFields(mergeFields([
+      address,
+      prefixFields('company', address, { label: label => `Company ${label.toLowerCase()}` }),
+    ]))
+
+    expect(Object.keys(fields)).toEqual(['zip', 'street', 'companyZip', 'companyStreet'])
+    expect(fields.companyStreet.label).toBe('Company street')
+    expect(fields.street.label).toBe('Street')
+  })
+
+  it('leaves the labels alone when it is not asked', () => {
+    const renamed = prefixFields('company', address)
+
+    expect(renamed.companyStreet.label).toBe('Street')
+  })
+
+  it('leaves the fragment it was given alone', () => {
+    prefixFields('company', address, { label: () => 'Changed' })
+
+    expect(address.street.label).toBe('Street')
   })
 })
 
