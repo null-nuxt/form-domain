@@ -28,6 +28,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`pickFields` and `omitFields`**, for using part of a fragment: a customer
+  block is one thing to declare and two things to show, with the document in one
+  step of a wizard and the contact details in another. The keys are read as
+  written, which a hand-rolled version of this usually gets wrong — a list of
+  names widens to `string[]`, the inference falls back to "every key of the
+  fragment", and what was left out comes back.
+
 - **`addGroupRule(fields, target, rule)`**, one rule for a whole section of the
   form: `canShow`, `canEdit`, `clearWhenHidden`, over the fragment that declares
   the fields or over a list of their keys. Given a fragment, membership follows

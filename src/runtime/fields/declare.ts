@@ -404,6 +404,50 @@ export type Declared<T> = {
 }
 
 /**
+ * Part of a declaration, as a declaration.
+ *
+ * A fragment is a unit of reuse, not always a unit of layout: the customer
+ * block is one thing to declare and two things to show, with the document in
+ * the first step of a wizard and the contact details in the second. Splitting
+ * it by hand means naming every field twice, once where it is declared and
+ * again where it is used.
+ *
+ * Inert in, inert out — what comes back is a declaration like any other, so it
+ * goes into `refFields`, `mergeFields` or a step and is checked there.
+ *
+ * The keys are read with `const`. Without it a list of names widens to
+ * `string[]`, the inference for them fails, and TypeScript falls back to the
+ * constraint — every key of the fragment — so the result claims to hold what it
+ * was asked to leave out.
+ */
+export const pickFields = <T extends FieldsInput, const K extends keyof T>(
+  fields: T,
+  keys: readonly K[],
+): Pick<T, K> => {
+  const result: Record<string, unknown> = {}
+  for (const key of keys) {
+    if (key in fields) result[key as string] = fields[key as string]
+  }
+
+  return result as Pick<T, K>
+}
+
+/** The other side of `pickFields`: everything except what is named. */
+export const omitFields = <T extends FieldsInput, const K extends keyof T>(
+  fields: T,
+  keys: readonly K[],
+): Omit<T, K> => {
+  const dropped = new Set<string>(keys as readonly string[])
+  const result: Record<string, unknown> = {}
+
+  for (const [key, field] of Object.entries(fields)) {
+    if (!dropped.has(key)) result[key] = field
+  }
+
+  return result as Omit<T, K>
+}
+
+/**
  * The form's fields, named. This is where a field learns its own key, so the
  * template never repeats the name next to the field.
  *

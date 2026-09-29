@@ -810,6 +810,18 @@ export const address = defineFields({
 const fields = refFields(mergeFields([customer, address]))
 ```
 
+`pickFields` and `omitFields` take part of one, because a fragment is a unit of
+reuse and not always a unit of layout — the customer block is one thing to
+declare and two things to show, with the document in the first step of a wizard
+and the contact details in the second:
+
+```ts
+refSteps({
+  document: pickFields(customer, ['cpf']),
+  contact: omitFields(customer, ['cpf']),
+})
+```
+
 `defineFields` builds nothing — it returns what it was given. It is there for
 what happens while you type: the editor completes the declaration, and an option
 whose value doesn't match its field fails in the file that declared it instead
@@ -992,6 +1004,8 @@ rest, so the wizard would walk in an order nobody wrote.
 ```ts
 defineFields({ name: { ... } })   // a declaration in its own file, checked there
 mergeFields([a, b])               // declaration fragments into one
+pickFields(fragment, ['a'])       // part of one, as a declaration
+omitFields(fragment, ['a'])       // everything except
 refField({ label, value })        // one field, reusable across domains
 refFields({ name: { ... } })      // the form's fields, named
 refSteps({ who: { ... } })        // one tree out of the steps, plus where in it we are

@@ -1,5 +1,5 @@
 // `#forms` is the package's public entry point
-export { defineFields, mergeFields, refField, refFields } from './fields/declare'
+export { defineFields, mergeFields, omitFields, pickFields, refField, refFields } from './fields/declare'
 export { addGroupRule, addRule, addRules, addSchema, addSchemas } from './fields/register'
 export { defineFormDomain, toForm } from './domain/define'
 export { refSteps } from './steps/create'

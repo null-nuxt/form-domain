@@ -1,7 +1,8 @@
 import { isReactive, nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import { addRule, addRules } from '../src/runtime/fields/register'
-import { mergeFields, refField, refFields } from '../src/runtime/fields/declare'
+import { defineFields, mergeFields, omitFields, pickFields, refField, refFields } from '../src/runtime/fields/declare'
+import { refSteps } from '../src/runtime/steps/create'
 import { toForm } from '../src/runtime/domain/define'
 import type { PersonType } from './support/fields'
 
@@ -62,6 +63,35 @@ describe('mergeFields', () => {
     await nextTick()
 
     expect(form.values.value.city).toBe('Recife')
+  })
+})
+
+describe('pickFields and omitFields', () => {
+  const customer = defineFields({
+    cpf: { label: 'CPF', value: '' },
+    name: { label: 'Name', value: '' },
+    email: { label: 'E-mail', value: '' },
+  })
+
+  /** A fragment is a unit of reuse; it is not always a unit of layout. */
+  it('splits one fragment between two steps', () => {
+    const steps = refSteps({
+      document: pickFields(customer, ['cpf']),
+      contact: omitFields(customer, ['cpf']),
+    })
+
+    expect(steps.keysOf('document')).toEqual(['cpf'])
+    expect(steps.keysOf('contact')).toEqual(['name', 'email'])
+
+    // still one tree
+    expect(Object.keys(steps.fields)).toEqual(['cpf', 'name', 'email'])
+  })
+
+  it('leaves the fragment it was given alone', () => {
+    pickFields(customer, ['cpf'])
+    omitFields(customer, ['cpf'])
+
+    expect(Object.keys(customer)).toEqual(['cpf', 'name', 'email'])
   })
 })
 

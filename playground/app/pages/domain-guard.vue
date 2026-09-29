@@ -411,6 +411,17 @@ void documentKind
 fromFragment.holder.value = 'anyone'
 
 /**
+ * Part of a fragment is a fragment. The keys are read as written — without that
+ * the inference falls back to "every key", and what was left out comes back.
+ */
+const onlyTheDocument = refFields(pickFields(documents, ['kind']))
+
+void onlyTheDocument.kind.value
+
+// @ts-expect-error `holder` was left out of the pick
+void onlyTheDocument.holder
+
+/**
  * A step hands its handler the values it holds — never the payload, which is a
  * projection of the WHOLE form and belongs to the submit.
  */
