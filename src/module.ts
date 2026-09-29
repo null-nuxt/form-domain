@@ -99,6 +99,9 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         // generic runtime would stop compiling (an "impossible" comparison)
         `export default [${files.map((_, index) => `domain${index}`).join(', ')}]`,
         ``,
+        // so a file that exports something else can be named when it is skipped
+        `export const files = [${files.map(file => `'${withoutExtension(file)}'`).join(', ')}]`,
+        ``,
       ].join('\n'),
     })
 

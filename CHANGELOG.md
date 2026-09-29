@@ -8,6 +8,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A file under `forms/` that is not a domain is skipped**, with a line in dev
+  naming it, instead of reaching the catalog as `undefined` and failing at
+  whoever reads it next.
+
 - **A value dropped because its list changed goes back to what the field was
   declared with**, instead of to an empty string. A field declared `null` means
   "nothing chosen"; emptied to `''` it hands a string schema a value it accepts,

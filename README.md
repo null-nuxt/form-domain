@@ -730,6 +730,11 @@ cost 300 property reads, not 300 setups.
 
 `x.ts` and `x/index.ts` are the same domain; if both exist, the directory wins.
 
+
+A file under `forms/` that exports something else — a helper, a type, the
+composable a form grew into — is skipped, with a line in dev naming it. The scan
+imports everything it finds, so a directory you can put a file next to is worth
+more than one that breaks when you do.
 ## Two ways in, and which is for what
 
 The engine and the field objects both reach the same state. They are not

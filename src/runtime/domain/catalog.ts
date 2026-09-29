@@ -1,7 +1,32 @@
-import domains from '#form-domains'
+import found, { files } from '#form-domains'
+
+/**
+ * The ones that really are domains.
+ *
+ * Everything under `forms/` is imported, and a file there may well export
+ * something else — a helper, a type, the composable a form grew into. Left in,
+ * it reaches the catalog as `undefined` and the failure lands on whoever reads
+ * it next; skipped with a word in dev, the scan stays something you can put a
+ * file next to.
+ */
+const isDomain = (value: unknown): value is Factory =>
+  typeof value === 'function' && typeof (value as { id?: unknown }).id === 'string'
+
+const domains = (found as unknown[]).filter((domain, index) => {
+  if (isDomain(domain)) return true
+
+  if (import.meta.dev) {
+    console.warn(
+      `[@null-nuxt/form-domain] "${files[index]}" is under forms/ but does not export a form domain `
+      + `as its default. It was skipped — export one, or move the file out of forms/.`,
+    )
+  }
+
+  return false
+}) as Factories
 
 /** Every domain discovered under `<srcDir>/forms`. */
-type Factories = typeof domains
+type Factories = typeof found
 
 type Factory = Factories[number]
 
