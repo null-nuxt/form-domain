@@ -13,7 +13,24 @@ import type { AnyFields, Exposed, FormEngine, SelectedOptions, SetupResult, Valu
  * another. Not `create`, which in this package used to mean a builder you had
  * to terminate; and not `useForm`, which vee-validate already exports.
  */
-export function toForm<F extends AnyFields>(fields: F): FormEngine<F> {
+/** What a form assembled in a component can project from, with no setup to expose. */
+export interface ComponentPayloadContext<F extends AnyFields> {
+  fields: F
+  values: ValuesOf<F>
+  /** Only what a rule is currently letting through. */
+  visible: Partial<ValuesOf<F>>
+  selected: SelectedOptions<F>
+}
+
+export function toForm<F extends AnyFields>(fields: F): FormEngine<F>
+export function toForm<F extends AnyFields, P>(
+  fields: F,
+  options: { payload: (ctx: ComponentPayloadContext<F>) => P },
+): FormEngine<F> & { payload: ComputedRef<P> }
+export function toForm<F extends AnyFields>(
+  fields: F,
+  options?: { payload: (ctx: ComponentPayloadContext<F>) => unknown },
+) {
   const scope = effectScope(true)
   const engine = scope.run(() => createEngine(fields))!
 
@@ -24,7 +41,28 @@ export function toForm<F extends AnyFields>(fields: F): FormEngine<F> {
 
   if (getCurrentScope()) onScopeDispose(dispose)
 
-  return { ...engine, dispose }
+  if (!options?.payload) return { ...engine, dispose }
+
+  /**
+   * The same projection a domain declares, for a form that has no domain to
+   * declare it on. Without it every component form maps its values by hand at
+   * the submit, which is the one piece of a form that has to agree with the
+   * backend exactly.
+   */
+  const context: ComponentPayloadContext<F> = {
+    fields,
+    get values() {
+      return engine.values.value
+    },
+    get visible() {
+      return engine.visible.value
+    },
+    get selected() {
+      return engine.selected.value
+    },
+  }
+
+  return { ...engine, dispose, payload: computed(() => options.payload(context)) }
 }
 
 type PayloadContext<S extends SetupResult> = Exposed<S> & {

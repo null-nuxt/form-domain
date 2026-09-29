@@ -565,6 +565,17 @@ present spreads the first; one that must not receive the opposite group's
 document spreads the second. Both reach the context because neither answer is
 right for everyone.
 
+A form assembled in a component projects the same way, without a domain to
+declare it on:
+
+```ts
+const form = toForm(fields, {
+  payload: ctx => ({ ...ctx.visible, kind_label: ctx.selected.kind?.label ?? '' }),
+})
+
+form.payload.value
+```
+
 ## The attempt: `useFormSession`
 
 The form answers what is true of the fields right now. What was *tried* — the
@@ -585,6 +596,10 @@ const send = session.submit(async (payload) => {
 `submit` validates first and calls the handler only if it passed, hands it the
 `payload` — the domain's projection, or `values` for a plain form — and ignores
 a second call while the first is in flight, because a double click is one click.
+
+`session.reset()` puts the form back to its declared values and forgets the
+attempt: no messages, nothing visited, no submit counted. Starting over is one
+action, so it resets the form as well.
 
 ### Who owns the error
 

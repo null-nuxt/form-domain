@@ -119,6 +119,32 @@ describe('assembling inside a component', () => {
   })
 })
 
+describe('a projection without a domain', () => {
+  /** The piece that has to agree with the backend exactly, declared once. */
+  it('projects what a form in a component sends', () => {
+    const fields = refFields({
+      kind: {
+        label: 'Kind',
+        value: '' as 'person' | 'company' | '',
+        options: [{ label: 'Person', value: 'person' }, { label: 'Company', value: 'company' }],
+      },
+      taxId: { label: 'Tax id', value: '' },
+    })
+
+    addRules(fields, { taxId: { canShow: () => fields.kind.value === 'company' } })
+
+    const form = toForm(fields, {
+      payload: ctx => ({ ...ctx.visible, kind_label: ctx.selected.kind?.label ?? '' }),
+    })
+
+    expect(form.payload.value).toEqual({ kind: '', kind_label: '' })
+
+    form.set({ kind: 'company', taxId: '123' })
+
+    expect(form.payload.value).toEqual({ kind: 'company', taxId: '123', kind_label: 'Company' })
+  })
+})
+
 describe('the guard against state shared across requests', () => {
   /**
    * The hole the types can't see: `refFields()` at module scope runs once per

@@ -30,6 +30,7 @@ interface SessionTarget {
   values: ComputedRef<unknown>
   validate(keys?: readonly string[]): Promise<ValidationResult<unknown>>
   validateField(key: string): Promise<{ valid: boolean, errors: string[] }>
+  reset(): void
 }
 
 type FieldsOf<Form> = Form extends { fields: infer F } ? F : never
@@ -98,6 +99,15 @@ export type FormSession<Form> = {
   /** What came back from the server, keyed by field. */
   setErrors: (errors: Partial<Record<KeyOf<Form>, string | undefined>>) => void
   clearErrors: () => void
+  /**
+   * Back to the start: the values the form was declared with, and nothing
+   * remembered about the attempt.
+   *
+   * It resets the form too. "Start over" is one action, and a session that
+   * forgot the attempt while the old answers stayed in the fields would be
+   * showing a form nobody has touched with everything already filled in.
+   */
+  reset: () => void
   submit: (handler: (payload: PayloadOf<Form>) => unknown) => (event?: Event) => Promise<void>
 } & StepHandling<Form>
 
@@ -326,6 +336,12 @@ export function useFormSession<Form extends SessionTarget>(form: Form): FormSess
       for (const [key, message] of Object.entries(incoming)) keep(key, message, true)
     },
     clearErrors: () => remembered.clear(),
+    reset: () => {
+      form.reset()
+      remembered.clear()
+      touched.clear()
+      attempts.value = 0
+    },
     submit,
     next,
     // assembled loosely; FormSession is the contract it is typed against

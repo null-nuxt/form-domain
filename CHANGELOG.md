@@ -28,6 +28,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`session.reset()`**, which puts the form back to its declared values and
+  forgets the attempt — no messages, nothing visited, no submit counted.
+  Starting over was three calls in every composable that had a form.
+
+- **`toForm(fields, { payload })`**, the projection a domain declares, for a
+  form that has no domain to declare it on. Without it every form built in a
+  component maps its values by hand at the submit, which is the one piece that
+  has to agree with the backend exactly.
+
 - **`pickFields` and `omitFields`**, for using part of a fragment: a customer
   block is one thing to declare and two things to show, with the document in one
   step of a wizard and the contact details in another. The keys are read as

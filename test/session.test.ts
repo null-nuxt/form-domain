@@ -109,6 +109,24 @@ describe('useFormSession', () => {
     expect(form.fields.name.touch).toBeUndefined()
   })
 
+  /** "Start over" is one action, so it puts the values back too. */
+  it('resets the form and forgets the attempt', async () => {
+    const form = buildForm()
+    const session = useFormSession(form)
+
+    form.set({ name: 'Ana' })
+    await session.submit(vi.fn())()
+    expect(session.errorOf('email')).toBe('Email is required')
+
+    session.reset()
+    await nextTick()
+
+    expect(form.values.value.name).toBe('')
+    expect(session.errors.value).toEqual({})
+    expect(session.attempts.value).toBe(0)
+    expect(form.fields.email.error).toBeUndefined()
+  })
+
   const buildPair = () => {
     const fields = refFields({
       password: { label: 'Password', value: '' },
