@@ -48,6 +48,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   step, present rather than optional, and a name no step has fails to compile.
   `done` becomes a reserved step name.
 
+  The last step is left like every other one, its handler included, and only
+  then is `done` called — a wizard saving each approved step would otherwise
+  skip the one the user finishes on.
+
 - **`prefixFields`**, for the same fragment twice in one form — two addresses, a
   billing block beside a delivery one. It renames the keys and, when asked, the
   labels, since the second block rarely wants the first one's wording. It does

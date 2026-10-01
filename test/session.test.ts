@@ -345,6 +345,54 @@ describe('useFormSession', () => {
     expect(form.steps.current.value).toBe('where')
   })
 
+  /**
+   * The last step is a step first. A wizard that saves each step as it is
+   * approved would otherwise skip the one the user finishes on, quietly.
+   */
+  it('leaves the last step like any other, and only then finishes', async () => {
+    const form = buildWizard('session-submit-last')
+    const session = useFormSession(form)
+
+    const left: string[] = []
+    const done = vi.fn()
+
+    const send = session.submit({
+      who: () => void left.push('who'),
+      where: () => void left.push('where'),
+      done,
+    })
+
+    form.set({ name: 'Ana' })
+    await settle()
+    await send()
+
+    expect(left).toEqual(['who'])
+    expect(done).not.toHaveBeenCalled()
+
+    form.set({ city: 'Recife' })
+    await settle()
+    await send()
+
+    expect(left).toEqual(['who', 'where'])
+    expect(done).toHaveBeenCalledOnce()
+  })
+
+  it('does not finish when the last step refuses', async () => {
+    const form = buildWizard('session-submit-refused')
+    const session = useFormSession(form)
+    const done = vi.fn()
+
+    const send = session.submit({ where: () => false, done })
+
+    form.set({ name: 'Ana', city: 'Recife' })
+    await settle()
+    await send()
+    await send()
+
+    expect(form.steps.current.value).toBe('where')
+    expect(done).not.toHaveBeenCalled()
+  })
+
   /** A wizard's step is an attempt too, so `next` feeds the same memory. */
   it('next shows what the step refused, and moves on when it passes', async () => {
     const form = buildWizard('session-wizard')

@@ -294,65 +294,33 @@ function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form>
   const payloadOf = () =>
     ('payload' in form ? (form as { payload: ComputedRef<unknown> }).payload.value : form.values.value)
 
-  const sendEverything = async (done: (payload: never) => unknown) => {
-    // a second click while the first is still in flight is the same click
-    if (submitting.value) return
+  /** Validates everything, then hands the payload over. */
+  const finish = async (done: (payload: never) => unknown) => {
+    const result = await form.validate()
+    rememberResult(result)
+    if (!result.valid) return
 
-    submitting.value = true
-    attempts.value += 1
-
-    try {
-      const result = await form.validate()
-      rememberResult(result)
-      if (!result.valid) return
-
-      await done(payloadOf() as never)
-    }
-    finally {
-      submitting.value = false
-    }
+    await done(payloadOf() as never)
   }
 
-  /** On the last step there is nothing ahead, so submitting means finishing. */
-  const onTheLastStep = () => {
+  /**
+   * Leaves the step the wizard is on: its own keys validated, its handler given
+   * the chance to refuse, and the move made if both agree. Answers whether the
+   * step was left cleanly, which is not the same as whether it moved — on the
+   * last one there is nowhere to move to.
+   */
+  const leaveCurrentStep = async (handler?: (context: { step: never, values: never }) => unknown) => {
     if (!steps) return true
-
-    const visible = steps.visibleNames.value
-    return visible.indexOf(steps.current.value) === visible.length - 1
-  }
-
-  type Keyed = { done: (payload: never) => unknown } & Record<string, ((argument: never) => unknown) | undefined>
-
-  const submit = (handler: ((payload: never) => unknown) | Keyed) => async (event?: Event) => {
-    event?.preventDefault()
-
-    if (typeof handler === 'function') return sendEverything(handler)
-    if (onTheLastStep() || !steps) return sendEverything(handler.done)
-
-    // the handler for the step being left, if it has one; otherwise just move
-    await next(handler[steps.current.value] as undefined)
-  }
-
-  const steps = (form as { steps?: StepsTarget }).steps
-
-  const next = async (handler?: (context: { step: never, values: never }) => unknown) => {
-    // a second click while the first step is still being saved is the same click
-    if (!steps || submitting.value) return false
 
     const leaving = steps.current.value
     const stepKeys = steps.keysOf(leaving as never)
-    attempts.value += 1
+    let refused = false
 
     const gate = handler && (async () => {
-      submitting.value = true
+      const values = Object.fromEntries(stepKeys.map(key => [key, fields[key]?.value]))
+      refused = await handler({ step: leaving, values } as never) === false
 
-      try {
-        const values = Object.fromEntries(stepKeys.map(key => [key, fields[key]?.value]))
-        return await handler({ step: leaving, values } as never) !== false
-      }
-      finally {
-        submitting.value = false
-      }
+      return !refused
     })
 
     const result = await steps.next(gate)
@@ -364,7 +332,67 @@ function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form>
      */
     if (!result.valid) rememberResult(result, stepKeys)
 
-    return steps.current.value !== leaving
+    return result.valid && !refused
+  }
+
+  /** On the last step there is nothing ahead, so leaving it means finishing. */
+  const onTheLastStep = () => {
+    if (!steps) return true
+
+    const visible = steps.visibleNames.value
+    return visible.indexOf(steps.current.value) === visible.length - 1
+  }
+
+  type Keyed = { done: (payload: never) => unknown }
+    & Record<string, ((context: { step: never, values: never }) => unknown) | undefined>
+
+  const submit = (handler: ((payload: never) => unknown) | Keyed) => async (event?: Event) => {
+    event?.preventDefault()
+
+    // a second click while the first is still in flight is the same click
+    if (submitting.value) return
+
+    submitting.value = true
+    attempts.value += 1
+
+    try {
+      if (typeof handler === 'function') return await finish(handler)
+      if (!steps) return await finish(handler.done)
+
+      /**
+       * The last step is a step first. It is left the way every other one is,
+       * its own handler included — otherwise a wizard that saves each step as
+       * it is approved would quietly skip the one the user finishes on — and
+       * only then is there nothing ahead, which is what `done` is for.
+       */
+      const wasLast = onTheLastStep()
+      const leftCleanly = await leaveCurrentStep(handler[steps.current.value])
+
+      if (leftCleanly && wasLast) await finish(handler.done)
+    }
+    finally {
+      submitting.value = false
+    }
+  }
+
+  const steps = (form as { steps?: StepsTarget }).steps
+
+  const next = async (handler?: (context: { step: never, values: never }) => unknown) => {
+    // a second click while the first step is still being saved is the same click
+    if (!steps || submitting.value) return false
+
+    submitting.value = true
+    attempts.value += 1
+
+    const leaving = steps.current.value
+
+    try {
+      await leaveCurrentStep(handler)
+      return steps.current.value !== leaving
+    }
+    finally {
+      submitting.value = false
+    }
   }
 
   const visited = computed(() => [...touched] as ReadonlyArray<KeyOf<Form>>)
@@ -384,6 +412,7 @@ function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form>
   const sessions = getFormSessions()
   sessions.add(announced)
   if (getCurrentScope()) onScopeDispose(() => sessions.delete(announced))
+
 
   return {
     isSubmitting: announced.isSubmitting,

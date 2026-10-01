@@ -608,10 +608,13 @@ const send = session.submit({
 })
 ```
 
-On any step but the last it validates that step, hands its handler what that
-step holds and moves on; on the last it validates the whole form and hands
-`done` the payload. The page binds one thing to `@submit` and never asks whose
-turn it is.
+Every step is left the same way: its own keys validated, its handler given what
+it holds and the chance to refuse. On the last one there is nothing ahead, so
+after leaving it the whole form is validated and `done` is handed the payload —
+the step's own handler still runs, because a wizard that saves each step as it
+is approved should not skip the one the user finishes on.
+
+The page binds one thing to `@submit` and never asks whose turn it is.
 
 Keyed by name because the name is what buys the typing: each handler receives
 exactly the values of its own step, present rather than optional, and a name no
