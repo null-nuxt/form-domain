@@ -204,6 +204,14 @@ most `.when()` calls: the condition was stated once.
 `clearWhenHidden` is opt-in because it erases data — in a multi-step form a
 hidden field usually needs to keep what the user typed.
 
+**Who hid it is who decides.** A field answers to its own rule and to every group
+it is in, and `clearWhenHidden` is read off whatever is currently saying no: an
+address inside a toggle that drops it and inside a lookup that folds it away once
+a postcode answered keeps what was typed when the lookup is the one hiding it.
+Written next to a `canShow`, it is about that condition. Written without one — on
+a field, or on a group — it never hides anything, so it is the shorter sentence:
+drop what I hold whenever I am out of sight, a skipped step included.
+
 `onChange` writes through `ctx.patch()`, which is a **request**: the engine only
 applies it if that invocation is still the most recent one, so a slow lookup
 can't overwrite newer input.

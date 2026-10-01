@@ -1,6 +1,6 @@
 import { computed, watch } from 'vue'
 import { shapeOf, validateShape } from './validate'
-import { isEditable, isVisible } from './visibility'
+import { clearsWhenHidden, isEditable, isVisible } from './visibility'
 import { loadOptionsFor } from './options'
 import { claimFields, releaseFields } from './claim'
 import { CONTRACT_KEYS, getBindingExtenders } from './bindings'
@@ -103,14 +103,11 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
    */
   watch(canShow, (current, previous) => {
     for (const key of keys) {
+      if (current[key] !== false || previous?.[key] === false) continue
+
+      // asked for by whatever is hiding it, which is not the same as by anything attached to it
       const field = fields[key]!
-
-      // asked for by the field, or by a group it is in — a whole section going away
-      const clears = field.rule?.clearWhenHidden
-        || (field.groups ?? []).some(group => group.clearWhenHidden)
-
-      if (!clears) continue
-      if (current[key] === false && previous?.[key] !== false) field.value = initialValues[key]
+      if (clearsWhenHidden(field)) field.value = initialValues[key]
     }
   })
 

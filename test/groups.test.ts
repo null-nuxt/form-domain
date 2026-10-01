@@ -96,6 +96,95 @@ describe('a rule for a group of fields', () => {
     expect(form.values.value.city).toBe('')
   })
 
+  /**
+   * The real shape of this: an address inside a toggle that drops it, and
+   * inside a lookup that only hides it once a postcode answered. Which one hid
+   * it is the difference between keeping and losing what was typed.
+   */
+  describe('a field in two groups, one of which clears', () => {
+    const buildBoth = () => {
+      const fields = refFields({
+        kind: { label: 'Kind', value: 'company' },
+        resolved: { label: 'Resolved', value: '' },
+        ...address,
+      })
+
+      // the toggle: the section does not apply, so it goes and takes its values
+      addGroupRule(fields, address, {
+        canShow: () => fields.kind.value === 'company',
+        clearWhenHidden: true,
+      })
+
+      // the lookup: filled in and folded away, with what it found still inside
+      addGroupRule(fields, address, {
+        canShow: () => fields.resolved.value === '',
+      })
+
+      return fields
+    }
+
+    it('keeps what was typed when the group that hid it does not clear', async () => {
+      const fields = buildBoth()
+      const form = toForm(fields)
+
+      form.set({ street: 'Rua A', city: 'Recife' })
+      fields.resolved.value = 'yes'
+      await nextTick()
+
+      expect(form.canShow.value.street).toBe(false)
+      expect(form.values.value.street).toBe('Rua A')
+      expect(form.values.value.city).toBe('Recife')
+    })
+
+    it('clears when the group that hid it is the one asking', async () => {
+      const fields = buildBoth()
+      const form = toForm(fields)
+
+      form.set({ street: 'Rua A', city: 'Recife' })
+      fields.kind.value = 'person'
+      await nextTick()
+
+      expect(form.values.value.street).toBe('')
+      expect(form.values.value.city).toBe('')
+    })
+
+    /**
+     * A group that asks to clear without saying when it shows never hides
+     * anything, so it is not a reason — it is the section saying its values go
+     * whenever they are out of sight, whoever took them out.
+     */
+    it('a group that clears without a canShow of its own applies either way', async () => {
+      const fields = refFields({
+        resolved: { label: 'Resolved', value: '' },
+        ...address,
+      })
+
+      addGroupRule(fields, address, { clearWhenHidden: true })
+      addGroupRule(fields, address, { canShow: () => fields.resolved.value === '' })
+
+      const form = toForm(fields)
+
+      form.set({ street: 'Rua A' })
+      fields.resolved.value = 'yes'
+      await nextTick()
+
+      expect(form.values.value.street).toBe('')
+    })
+
+    /** Both at once: the one that clears is among them, so the values go. */
+    it('clears when both hide it together', async () => {
+      const fields = buildBoth()
+      const form = toForm(fields)
+
+      form.set({ street: 'Rua A' })
+      fields.kind.value = 'person'
+      fields.resolved.value = 'yes'
+      await nextTick()
+
+      expect(form.values.value.street).toBe('')
+    })
+  })
+
   /** What the single slot could not do: a field inside a step AND inside a section. */
   it('composes with the step a field is in', async () => {
     const steps = refSteps({

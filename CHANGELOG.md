@@ -8,6 +8,14 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`clearWhenHidden` is read off whatever hid the field**, not off everything
+  attached to it. A field in two groups — a toggle that drops the section, a
+  lookup that folds it away once it answered — lost what the person typed when
+  the lookup hid it, because the toggle's `clearWhenHidden` was enough on its
+  own. A condition that says no is the one that decides; a rule that asks for it
+  without a `canShow` of its own still applies however the field was hidden,
+  which is what a field or a group means by it.
+
 - **A rule or schema for a field the form does not have says so**, instead of
   being skipped in silence. The types catch it wherever the keys are known; this
   is for where they are not — a fragment's rules written against the keys it
