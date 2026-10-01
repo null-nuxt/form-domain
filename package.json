@@ -34,6 +34,14 @@
     ".": {
       "types": "./dist/types.d.mts",
       "import": "./dist/module.mjs"
+    },
+    "./testing": {
+      "types": "./dist/runtime/testing.d.ts",
+      "import": "./dist/runtime/testing.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js"
     }
   },
   "files": [
@@ -65,8 +73,10 @@
   "devDependencies": {
     "@nuxt/eslint-config": "^1.9.0",
     "@nuxt/module-builder": "^1.0.1",
+    "@nuxt/test-utils": "^4.3.2",
     "@types/node": "^26.1.2",
     "eslint": "^9.30.0",
+    "happy-dom": "^20.14.5",
     "nuxt": "^4.4.8",
     "typescript": "^5.9.3",
     "vitest": "^4.1.10",

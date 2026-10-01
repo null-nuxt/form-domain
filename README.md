@@ -19,7 +19,7 @@ yup 1.7+.
 
 **Several screens** · [Multi-step forms](#multi-step-forms)
 
-**Around the form** · [Seeing what a form is doing](#seeing-what-a-form-is-doing) · [Catalog](#catalog) · [Two ways in](#two-ways-in-and-which-is-for-what) · [Scaling up](#scaling-up)
+**Around the form** · [Seeing what a form is doing](#seeing-what-a-form-is-doing) · [Catalog](#catalog) · [Two ways in](#two-ways-in-and-which-is-for-what) · [Scaling up](#scaling-up) · [Testing a domain](#testing-a-domain)
 
 **Reference** · [What the compiler guarantees](#what-the-compiler-guarantees) · [API](#api) · [Development](#development)
 
@@ -1100,6 +1100,90 @@ a record has no order for the types to blame the later one with. A step named
 with a number is refused too: the runtime orders integer-like keys ahead of the
 rest, so the wizard would walk in an order nobody wrote.
 
+## Testing a domain
+
+A domain is testable without a component, a page or a browser: the setup is a
+function, and the engine it builds has no DOM in it. What stands in the way is
+that a domain is **shared on purpose** — the bargain that lets two components
+fill in one form means the second test to ask for it gets whatever the first one
+typed. So there is a door for tests:
+
+```ts
+import { afterEach, expect, it } from 'vitest'
+import { createTestForm, resetForms, settle } from '@null-nuxt/form-domain/testing'
+import { useSignupForm } from '~/forms/signup'
+
+afterEach(resetForms)
+
+it('refuses an email the backend will refuse', async () => {
+  const form = createTestForm(useSignupForm)
+
+  expect((await form.validate()).firstErrors.email).toBe('Email is required')
+
+  form.set({ email: 'ana@example.com' })
+
+  expect((await form.validate()).valid).toBe(true)
+  expect(form.payload.value).toEqual({ login: 'ana@example.com' })
+})
+```
+
+`createTestForm(domain)` forgets the domain first, so the form starts from its
+declaration however many tests ran before it, and then builds it — and the domain
+keeps handing out that same instance, so whatever is under test is looking at the
+form the test is holding. What comes back is the instance itself: `set`,
+`validate`, `values`, `visible`, `payload`, `fields`, `register`, `steps`, plus
+`dispose`.
+
+`resetForms()` forgets every domain, each one's effects stopped and its session
+released — `afterEach(resetForms)` is the whole isolation story. `forgetForm(id)`
+does one. `settle()` waits past a rule that went and asked something: `nextTick()`
+covers what a patch writes, but a postcode lookup or a fetched option list only
+lands once its promise does, so this is what the package's own tests wait on.
+
+### Making the imports resolve
+
+A domain file imports from `#forms`, and this module's own runtime imports
+`#imports`. Both are Nuxt's, so a test run has to be told about them. Either way
+works; the first is the one to reach for.
+
+**With the Nuxt environment** — the standard setup, and what resolves everything
+else your domain touches (`~/`, `useRuntimeConfig`, `$fetch`, and the generated
+catalog behind `useFormDomain('slug')`):
+
+```ts
+// vitest.config.ts
+import { defineVitestConfig } from '@nuxt/test-utils/config'
+
+export default defineVitestConfig({
+  test: { environment: 'nuxt' },
+})
+```
+
+**Without it**, for a project whose domains import nothing but `#forms` — two
+aliases, and the second is a one-line file:
+
+```ts
+// vitest.config.ts
+import { fileURLToPath } from 'node:url'
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  resolve: {
+    alias: {
+      '#forms': '@null-nuxt/form-domain/runtime',
+      '#imports': fileURLToPath(new URL('./test/stubs/imports.ts', import.meta.url)),
+    },
+  },
+})
+
+// test/stubs/imports.ts
+export const tryUseNuxtApp = () => null
+```
+
+That stub is the honest answer rather than a fake one: outside Nuxt there is no
+request to isolate state per, so the registry is one per process — which is what
+a test run wants anyway, and what `resetForms()` clears.
+
 ## What the compiler guarantees
 
 | Error | When it surfaces |
@@ -1153,6 +1237,15 @@ defineFormDomain(id, meta?, setup)   // a shared domain
 useFormDomain('slug')             // a domain, in a component
 useFormSession(form)              // the attempt: submit, messages, visited
 extendFormBindings(extender)      // extra keys on register(), from a plugin
+```
+
+**In a test**, from `@null-nuxt/form-domain/testing`
+
+```ts
+createTestForm(domain)   // a form that starts from its declaration
+resetForms()             // forget every domain — afterEach(resetForms)
+forgetForm(id)           // forget one
+settle()                 // wait past a rule that went and asked something
 ```
 
 **The form**
@@ -1235,6 +1328,13 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+`pnpm test` runs two projects. **unit** runs the runtime against stubs — no Nuxt,
+and where all the behaviour is pinned. **nuxt** boots the playground so the public
+doors are exercised the way a project gets them: `#forms` resolved by the module's
+own alias and `#imports` resolving to a real app, which is the only place the
+per-request registry is the app's rather than the process-wide fallback. Run one
+with `pnpm test --project unit`.
 
 ### Layout
 

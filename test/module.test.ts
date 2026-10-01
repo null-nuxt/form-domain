@@ -1,5 +1,6 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { collectDomainFiles, findDomainFiles } from '../src/module'
@@ -35,5 +36,29 @@ describe('finding the domains', () => {
   it('ignores a layer with no forms directory', () => {
     const layer = make(['customer.ts'])
     expect(collectDomainFiles([join(layer, 'missing'), layer])).toEqual([join(layer, 'customer.ts')])
+  })
+})
+
+/**
+ * The export map points at files a build has not produced yet, so nothing in a
+ * test run can import through it. What can be checked is that each path it
+ * promises has a source file behind it — a typo there is invisible until
+ * someone installs the package and cannot import what the README told them to.
+ */
+describe('what the package publishes', () => {
+  const root = fileURLToPath(new URL('..', import.meta.url))
+  const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
+    exports: Record<string, { types: string, import: string }>
+  }
+
+  it.each(Object.entries(manifest.exports))('%s is built from a file that exists', (_subpath, target) => {
+    for (const promised of [target.types, target.import]) {
+      // dist/module.mjs and dist/types.d.mts come from the module entry itself
+      const source = promised.replace(/^\.\/dist\/runtime\//, 'src/runtime/')
+        .replace(/^\.\/dist\/(module\.mjs|types\.d\.mts)$/, 'src/module.ts')
+        .replace(/\.(js|d\.ts)$/, '.ts')
+
+      expect(existsSync(join(root, source)), `${promised} -> ${source}`).toBe(true)
+    }
   })
 })

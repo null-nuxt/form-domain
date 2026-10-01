@@ -4,6 +4,29 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **A way to test a domain**, which there was no documented path for:
+  `@null-nuxt/form-domain/testing` with `createTestForm(domain)`, `resetForms()`,
+  `forgetForm(id)` and `settle()`.
+
+  A domain is shared on purpose, so the second test asking for one got whatever
+  the first typed into it — `createTestForm` forgets it first and hands back the
+  instance the domain will keep handing out, so what is under test and the test
+  itself are looking at one form. `resetForms()` in an `afterEach` is the whole
+  isolation story: effects stopped, sessions released, registry empty. `settle()`
+  waits past a rule that went and asked something, which `nextTick()` does not.
+
+  Plus the two ways to make `#forms` and `#imports` resolve in a test run, which
+  was the other half of why this was not being done — the Nuxt environment, or
+  two aliases for a project that does not want one. The README has both, and this
+  repository's own suite now runs a project each way.
+
+- **`@null-nuxt/form-domain/runtime`** as an export, so `#forms` can be aliased
+  to something stable in a test run that has no Nuxt resolving it.
+
 ## 0.4.0 — 2026-10-01
 
 ### Fixed

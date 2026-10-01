@@ -511,6 +511,23 @@ export function useFormSession<Form extends SessionTarget>(form: Form): FormSess
   return session
 }
 
+/**
+ * Stops the session a form is holding, if it built one.
+ *
+ * A session leaves when the last scope using it does, which in a component is
+ * unmounting. A test has no scope to unmount, so there has to be a way to say
+ * it by hand — that is what the testing entry point calls.
+ */
+export const releaseSession = (form: { fields: object }): void => {
+  const held = heldSessions()
+  const entry = held.get(form.fields)
+  if (!entry) return
+
+  entry.holders = 0
+  entry.stop()
+  held.delete(form.fields)
+}
+
 /** Counts one more user of a session, and releases it when the last one goes. */
 const hold = (entry: Held) => {
   entry.holders += 1
