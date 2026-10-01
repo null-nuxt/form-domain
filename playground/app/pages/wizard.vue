@@ -47,6 +47,8 @@ addRules(steps.fields, {
     onChange: async (postcode, ctx) => {
       if (postcode.length !== 8) return ctx.patch({ city: '' })
 
+      // the city is what is waiting, so the spinner belongs there and not here
+      ctx.busy('city')
       await new Promise(resolve => setTimeout(resolve, 300))
       ctx.patch({ city: 'Recife' })
     },

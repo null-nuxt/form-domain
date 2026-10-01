@@ -196,7 +196,7 @@ the whole function instead of the offending key.
 | `clearWhenHidden` | resets it to its initial value once hidden |
 | `deriveOptions` | a derived list; wins over the one declared on the field, and only for a field that declared one |
 | `loadOptions` | a fetched list; re-runs on whatever it read before its first `await` |
-| `onChange` | a side effect, writing through `ctx.patch()` |
+| `onChange` | a side effect, writing through `ctx.patch()` and saying who waits through `ctx.busy()` |
 
 `canShow` returning false removes the field from validation. That's what erases
 most `.when()` calls: the condition was stated once.
@@ -215,6 +215,39 @@ drop what I hold whenever I am out of sight, a skipped step included.
 `onChange` writes through `ctx.patch()`, which is a **request**: the engine only
 applies it if that invocation is still the most recent one, so a slow lookup
 can't overwrite newer input.
+
+**Who is waiting is `ctx.busy()`.** A field being fetched for says so through
+`loadingOptions`; a field being *filled in* by a lookup had no way to, so every
+project that looks up a postcode ended up returning a ref of its own and wiring it
+into each input by hand:
+
+```ts
+addRules(fields, {
+  postcode: {
+    onChange: async (postcode, { patch, busy }) => {
+      // the city is what has nothing to show, so that is where the spinner goes
+      busy('city')
+      patch(await api.address(postcode))
+    },
+  },
+})
+```
+
+The field whose handler is running is held without being named. Everything is
+freed when the handler settles, a throw included — there is no second call to
+pair with, so there is nothing to leak — and a field counts what is holding it, so
+two lookups waiting on one city do not free it twice.
+
+A handler that throws is **reported**, naming the field. Nobody awaits it — Vue
+calls the watcher — so its rejection belongs to no one, and left alone it is an
+unhandled rejection that names neither the field nor the rule. Whatever the user
+should see about a network that fell over is the handler's own business, inside
+its own `try`.
+
+What the input reads is `field.busy`: one boolean for both halves, because an
+input wants to know whether to show a spinner, not why. It reaches a component
+the way everything else does, through an extender — `loading: field.busy` — and
+`loadingOptions` is still there for the half that is about a list.
 
 ### One rule for a group of fields
 
@@ -452,11 +485,12 @@ trigger to wire.
 
 The rest is about answers arriving out of order, which is where hand-written
 versions of this go wrong. A slower answer to an older question loses to a newer
-one. While a list is in flight the field says so through `loadingOptions`, which
-a project maps onto its own component the way it maps anything else:
+one. While a list is in flight the field says so — through `loadingOptions` for
+this specifically, or through [`busy`](#rules) for anything it is waiting on —
+which a project maps onto its own component the way it maps anything else:
 
 ```ts
-extendFormBindings(field => ({ loading: field.loadingOptions }))
+extendFormBindings(field => ({ loading: field.busy }))
 ```
 
 A **failed** load changes nothing: the list it had stays, and so does the value,
@@ -1314,7 +1348,8 @@ field.label / value / key
 field.meta            // whatever the declaration put there
 field.error           // what a session is showing for it
 field.touch           // say it was visited — undefined with no session
-field.loadingOptions  // a fetched list is in flight
+field.busy            // a list, or a rule that went and asked something, is in flight
+field.loadingOptions  // the list half of it, on its own
 field.selected        // the chosen option, from the effective list
 ```
 

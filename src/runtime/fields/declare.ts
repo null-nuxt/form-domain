@@ -62,7 +62,19 @@ export interface FieldRule<TValue, TValues> {
    * flight the field says so through `loadingOptions`.
    */
   loadOptions?: () => Promise<ReadonlyArray<FieldOption<OptionValue<TValue>>>>
-  onChange?: (value: TValue, ctx: { patch: (values: Partial<TValues>) => void }) => void | Promise<void>
+  onChange?: (value: TValue, ctx: {
+    patch: (values: Partial<TValues>) => void
+    /**
+     * Says which fields are waiting on this handler — the ones it is about to
+     * fill in, usually, since a postcode lookup leaves the street and the city
+     * blank while it runs and those are the inputs with nothing to show.
+     *
+     * Held for as long as the handler runs and freed when it settles, a throw
+     * included: there is no second call to pair with, so there is nothing to
+     * leak. The field the handler belongs to is held without being named.
+     */
+    busy: (...keys: Array<keyof TValues & string>) => void
+  }) => void | Promise<void>
 }
 
 /**
@@ -114,6 +126,24 @@ export interface FieldObj<TValue, TValues = Record<string, unknown>, TDeclared =
   loadedOptions?: ReadonlyArray<FieldOption<OptionValue<TValue>>>
   /** Whether `loadOptions` is in flight — for an input that wants to say so. */
   loadingOptions?: boolean
+  /**
+   * How many things are holding this field busy. Written by the engine: a rule's
+   * `onChange` holds the field it belongs to, plus whatever it names through
+   * `busy()`.
+   *
+   * A count rather than a flag because two handlers can be waiting on the same
+   * field — a postcode and a document both filling in a city — and the first one
+   * to finish must not say the field is free.
+   */
+  busyMarks?: number
+  /**
+   * Whether anything is in flight for this field: a list being fetched, or a rule
+   * that went and asked something.
+   *
+   * One boolean, because an input wants to know whether to show a spinner, not
+   * why. `loadingOptions` is still there for the half of it that is about a list.
+   */
+  readonly busy: boolean
   /** Written by `addRule`. Read by the engine. */
   rule?: FieldRule<TValue, TValues>
   /**
@@ -175,6 +205,8 @@ interface ReactiveSource<TValue> {
   groups?: GroupRule[]
   loadedOptions?: ReadonlyArray<FieldOption<OptionValue<TValue>>>
   loadingOptions?: boolean
+  busyMarks?: number
+  readonly busy: boolean
   schema?: unknown
   error?: string
   touch?: () => void
@@ -199,6 +231,10 @@ const createField = <TValue>(input: FieldInput<TValue>): FieldObj<TValue> => {
      * `this` is the reactive proxy when read through it, so the reads inside
      * are tracked.
      */
+    /** Derived for the same reason `selected` is: two sources, one answer. */
+    get busy(): boolean {
+      return this.loadingOptions === true || (this.busyMarks ?? 0) > 0
+    },
     get selected(): SelectedOf<TValue> {
       const list = this.rule?.deriveOptions
         ? this.rule.deriveOptions()

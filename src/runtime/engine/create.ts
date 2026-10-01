@@ -163,13 +163,63 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
       async (value) => {
         const ticket = ++latest
 
-        await onChange(value, {
-          patch: (patch) => {
-            // a request, not a write: a slow autofill must not overwrite what
-            // the user typed in the meantime
-            if (ticket === latest) set(patch as Partial<ValuesOf<F>>)
-          },
-        })
+        /**
+         * What this run is holding busy, so it is freed whatever happens — a
+         * throw included. Counted on the field, because another handler may be
+         * holding the same one.
+         */
+        const held = new Set<string>()
+
+        const hold = (...names: string[]) => {
+          for (const name of names) {
+            const target = fields[name]
+            if (!target || held.has(name)) continue
+
+            held.add(name)
+            target.busyMarks = (target.busyMarks ?? 0) + 1
+          }
+        }
+
+        // the field whose handler is running is waiting on it without saying so
+        hold(key)
+        let running = true
+
+        try {
+          await onChange(value, {
+            patch: (patch) => {
+              // a request, not a write: a slow autofill must not overwrite what
+              // the user typed in the meantime
+              if (ticket === latest) set(patch as Partial<ValuesOf<F>>)
+            },
+            // ignored once the handler settled: there would be nothing left to free it
+            busy: (...names: string[]) => {
+              if (running) hold(...names)
+            },
+          })
+        }
+        catch (error) {
+          /**
+           * Nobody is awaiting this. A watcher's callback is called by Vue and
+           * its rejection belongs to no one, so a handler that threw used to
+           * leave an unhandled rejection naming neither the field nor the rule —
+           * and in a test run it takes the whole suite down.
+           *
+           * Reported rather than warned, and not only in dev, unlike the same
+           * case in `loadOptions`: that one has something to fall back on — the
+           * list it already had — and this one has nothing. Whatever the user
+           * should see about it is the handler's own business, inside its own
+           * try.
+           */
+          console.error(`[@null-nuxt/form-domain] the onChange of "${key}" threw.`, error)
+        }
+        finally {
+          running = false
+
+          for (const name of held) {
+            const target = fields[name]!
+            target.busyMarks = Math.max(0, (target.busyMarks ?? 1) - 1)
+          }
+        }
       },
     )
   }

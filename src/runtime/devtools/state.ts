@@ -22,6 +22,8 @@ export interface InspectedField {
   /** What a session is showing for it, if anything. */
   error?: string
   touched: boolean
+  /** Whether a list or a rule is in flight for it — a field stuck here is worth seeing. */
+  busy: boolean
 }
 
 export interface InspectedSteps {
@@ -116,6 +118,7 @@ export const inspectForms = (host?: Record<string, unknown> | null): InspectedFo
       meta: field.meta,
       error: field.error,
       touched: touched.includes(key),
+      busy: field.busy === true,
     })) as InspectedField[]
 
     const steps = form.steps && {

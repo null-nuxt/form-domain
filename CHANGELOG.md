@@ -8,6 +8,29 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`ctx.busy()` in an `onChange`, and `field.busy` on the field.** A fetched list
+  said it was in flight and `register()` could carry that; a rule that went and
+  asked something could not, so a postcode lookup meant returning a ref from the
+  rules function, exposing it on the domain and binding it into each input by
+  hand.
+
+  The field whose handler is running is held without being named, and `busy()`
+  names the ones that are waiting on it — the street and the city a lookup is
+  about to fill in, which are the inputs with nothing to show. Everything is freed
+  when the handler settles, a throw included, and a field counts what holds it, so
+  two lookups waiting on one city do not free it twice.
+
+  `field.busy` is one boolean over both halves, because an input wants to know
+  whether to show a spinner rather than why. `loadingOptions` stays for the half
+  that is about a list, and the inspector shows the field as busy either way.
+
+### Fixed
+
+- **An `onChange` that throws is reported, naming the field**, instead of leaving
+  an unhandled rejection that names neither it nor the rule. Nobody awaits a
+  watcher's callback, so the throw belonged to no one — and in a test run it took
+  the whole suite down.
+
 - **A way to test a domain**, which there was no documented path for:
   `@null-nuxt/form-domain/testing` with `createTestForm(domain)`, `resetForms()`,
   `forgetForm(id)` and `settle()`.

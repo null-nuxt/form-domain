@@ -577,6 +577,37 @@ void plainInstance.payload.value.nick
 // @ts-expect-error a form without steps has no step to project
 void plainInstance.stepPayloads.identification
 
+/**
+ * `busy()` names fields, so it is checked like everything else that does: the
+ * form's own keys, and nothing else.
+ */
+const waiting = refFields({
+  postcode: { label: 'Postcode', value: '' },
+  city: { label: 'City', value: '' },
+})
+
+addRules(waiting, {
+  postcode: {
+    onChange: async (_postcode, { busy, patch }) => {
+      busy('city')
+      patch({ city: 'Recife' })
+    },
+  },
+})
+
+addRules(waiting, {
+  city: {
+    onChange: (_city, { busy }) => {
+      // @ts-expect-error no such field is waiting on anything
+      busy('district')
+    },
+  },
+})
+
+/** Derived, and always an answer: an input binds it without asking why. */
+const spinning: boolean = waiting.city.busy
+void spinning
+
 /** A standalone field sits next to the declarations and keeps its precision. */
 const sharedCpf = refField({ label: 'CPF', value: '', meta: { mask: 'cpf' } })
 const withStandalone = toForm(refFields({ cpf: sharedCpf, name: { label: 'Name', value: '' } }))

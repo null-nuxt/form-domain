@@ -160,6 +160,11 @@ const show = (value: unknown) => {
               </td>
               <td style="padding:.3rem .5rem">
                 {{ show(field.value) }}
+                <!-- a list or a rule in flight: a field stuck here is the thing you came to see -->
+                <span
+                  v-if="field.busy"
+                  style="color:#a16207"
+                >· busy</span>
               </td>
               <td style="padding:.3rem .5rem">
                 {{ field.shown ? 'yes' : `no (${field.hiddenBy})` }}
