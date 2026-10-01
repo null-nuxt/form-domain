@@ -67,7 +67,31 @@ interface StepContext<Form> {
    * a step is a part of it, so it hands over what it holds.
    */
   values: Partial<ValuesOf<Form>>
+  /**
+   * What that step sends: its own projection, or the values above when it
+   * declared none. Here it is every step's body at once, because which step
+   * `next` is leaving is a runtime question; a keyed submit handler knows its
+   * step and is given only that one.
+   */
+  payload: StepBodies<Form>
 }
+
+/** What a step sends, read off the projections the form built for each one. */
+type StepBodyOf<Form, K> = Form extends { stepPayloads: infer Bodies }
+  ? K extends keyof Bodies
+    ? Bodies[K] extends ComputedRef<infer Body> ? Body : never
+    : StepValuesOf<Form, K>
+  : StepValuesOf<Form, K>
+
+/** A step's own slice of the values — the body it sends when it projects nothing. */
+type StepValuesOf<Form, K> = K extends keyof StepsOf<Form>
+  ? Pick<ValuesOf<Form>, keyof StepsOf<Form>[K] & keyof ValuesOf<Form>>
+  : Partial<ValuesOf<Form>>
+
+/** Every step's body as one type, for a handler that is not told which step. */
+type StepBodies<Form> = [StepsOf<Form>] extends [never]
+  ? Partial<ValuesOf<Form>>
+  : { [K in keyof StepsOf<Form>]: StepBodyOf<Form, K> }[keyof StepsOf<Form>]
 
 /** A wizard's `next` is part of the session only when the form has steps. */
 type StepHandling<Form> = Form extends { steps: StepsTarget }
@@ -150,6 +174,8 @@ export type SubmitHandlers<Form> = {
       [K in keyof StepsOf<Form>]?: (context: {
         step: K
         values: Pick<ValuesOf<Form>, keyof StepsOf<Form>[K] & keyof ValuesOf<Form>>
+        /** What that step sends: `.payload({ [step]: ... })`, or `values` when it declares none. */
+        payload: StepBodyOf<Form, K>
       }) => unknown
     })
 
@@ -309,7 +335,7 @@ function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form>
    * step was left cleanly, which is not the same as whether it moved — on the
    * last one there is nowhere to move to.
    */
-  const leaveCurrentStep = async (handler?: (context: { step: never, values: never }) => unknown) => {
+  const leaveCurrentStep = async (handler?: StepHandler) => {
     if (!steps) return true
 
     const leaving = steps.current.value
@@ -318,7 +344,13 @@ function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form>
 
     const gate = handler && (async () => {
       const values = Object.fromEntries(stepKeys.map(key => [key, fields[key]?.value]))
-      refused = await handler({ step: leaving, values } as never) === false
+      /**
+       * The step's projection when the form declared one — read, not rebuilt:
+       * the domain already holds a computed per step. A form that has none
+       * (a hand-built one, or a step nobody projected) sends its values.
+       */
+      const body = bodies?.[leaving]
+      refused = await handler({ step: leaving, values, payload: body ? body.value : values } as never) === false
 
       return !refused
     })
@@ -343,8 +375,9 @@ function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form>
     return visible.indexOf(steps.current.value) === visible.length - 1
   }
 
-  type Keyed = { done: (payload: never) => unknown }
-    & Record<string, ((context: { step: never, values: never }) => unknown) | undefined>
+  type StepHandler = (context: { step: never, values: never, payload: never }) => unknown
+
+  type Keyed = { done: (payload: never) => unknown } & Record<string, StepHandler | undefined>
 
   const submit = (handler: ((payload: never) => unknown) | Keyed) => async (event?: Event) => {
     event?.preventDefault()
@@ -376,8 +409,9 @@ function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form>
   }
 
   const steps = (form as { steps?: StepsTarget }).steps
+  const bodies = (form as { stepPayloads?: Record<string, ComputedRef<unknown>> }).stepPayloads
 
-  const next = async (handler?: (context: { step: never, values: never }) => unknown) => {
+  const next = async (handler?: StepHandler) => {
     // a second click while the first step is still being saved is the same click
     if (!steps || submitting.value) return false
 

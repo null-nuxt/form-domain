@@ -565,6 +565,31 @@ present spreads the first; one that must not receive the opposite group's
 document spreads the second. Both reach the context because neither answer is
 right for everyone.
 
+### A payload per step
+
+A wizard that saves each step sends a body per step, and that body is the
+domain's business too — so it is declared here, not in the page:
+
+```ts
+.payload({
+  who: ctx => ({ full_name: ctx.values.name }),
+  where: ctx => ({ ...ctx.values, region_label: ctx.selected.region?.label ?? '' }),
+  done: ctx => ({ ...ctx.visible, price: ctx.price.value }),
+})
+```
+
+A step's projection reads the same context the form's does, with `values`
+narrowed to the keys that step declared. A step that declares none sends what it
+holds — the same default the form's payload has, one step down. `done` is the
+whole form, exactly as the single function projects it, and it is a reserved step
+name for that reason.
+
+The bodies are on the instance as `form.stepPayloads.who`, one computed each,
+and `session.submit` hands each step handler its own as `payload`.
+
+Nothing changes for a form without steps: it declares `.payload(ctx => ...)` and
+has no step bodies.
+
 A form assembled in a component projects the same way, without a domain to
 declare it on:
 
@@ -602,14 +627,16 @@ keyed by step name:
 
 ```ts
 const send = session.submit({
-  who: async ({ values }) => api.post('/onboarding', values),
-  where: async ({ values }) => api.patch('/onboarding/address', values),
+  who: async ({ payload }) => api.post('/onboarding', payload),
+  where: async ({ payload }) => api.patch('/onboarding/address', payload),
   done: async payload => api.post('/onboarding/finish', payload),
 })
 ```
 
 Every step is left the same way: its own keys validated, its handler given what
-it holds and the chance to refuse. On the last one there is nothing ahead, so
+it sends and the chance to refuse. `payload` is [what the step
+projects](#a-payload-per-step), or the values it holds when it projects nothing;
+`values` is always the raw fields, for a handler that wants them. On the last one there is nothing ahead, so
 after leaving it the whole form is validated and `done` is handed the payload —
 the step's own handler still runs, because a wizard that saves each step as it
 is approved should not skip the one the user finishes on.
@@ -617,8 +644,8 @@ is approved should not skip the one the user finishes on.
 The page binds one thing to `@submit` and never asks whose turn it is.
 
 Keyed by name because the name is what buys the typing: each handler receives
-exactly the values of its own step, present rather than optional, and a name no
-step has fails to compile. A step without a handler is simply walked past. For
+exactly its own step's values and its own step's body, present rather than
+optional, and a name no step has fails to compile. A step without a handler is simply walked past. For
 the same reason `done` is a reserved step name.
 
 `session.reset()` puts the form back to its declared values and forgets the
@@ -974,7 +1001,9 @@ without having been asked whether it is valid.
 
 One tree is the whole point. Every step's fields land in the same record, so a
 rule in the last step reads a value from the first, `values` is complete at any
-moment, and the payload stays one projection instead of a join. What a step
+moment, and the form's payload stays one projection instead of a join — a step
+that sends a body of its own [projects a slice](#a-payload-per-step) of that same
+tree. What a step
 decides is which keys are shown together — that is `activeKeys`, typed, so the
 page renders the current step with a `v-for`:
 
@@ -1073,6 +1102,8 @@ rest, so the wizard would walk in an order nobody wrote.
 | `addStepRules` naming a step that doesn't exist | **compile time** |
 | `addGroupRule` naming a field the form doesn't have | **compile time** |
 | `submit` naming a step that doesn't exist | **compile time** |
+| `.payload()` naming a step that doesn't exist | **compile time** |
+| a step handler reading a key its own body doesn't carry | **compile time** |
 | a rule or schema for a field the form doesn't have, where the types were bypassed | runtime warning |
 | `setErrors` naming a field that doesn't exist | **compile time** |
 | `goTo()` naming a step that doesn't exist | **compile time** |
@@ -1106,6 +1137,7 @@ addStepRules(steps, { ... })      // when a step applies at all
 toForm(fields)                       // assemble inside a component
 defineFormDomain(id, meta?, setup)   // a shared domain
   .payload(ctx => ({ ... }))         // optional projection
+  .payload({ who, done })            // or one per step, plus the whole form
 
 useFormDomain('slug')             // a domain, in a component
 useFormSession(form)              // the attempt: submit, messages, visited
@@ -1129,6 +1161,7 @@ form.validate()           // every visible field
 form.validate(keys)       // only those, through the same shape
 form.validateField(k)     // one; hidden or unvalidated counts as valid
 form.payload      // the projection, or `values` if none declared
+form.stepPayloads // what each step sends, by name — only with steps
 form.register(k)  // ready-made input props, plus what extenders add
 form.set(patch)   // partial, typed patch
 form.reset()      // back to initial values
@@ -1166,6 +1199,7 @@ session.clearErrors()
 session.attempts      // zero is why a pristine form shows nothing
 session.isSubmitting
 session.submit(handler)      // validates, then hands over the payload
+session.submit({ who, done }) // with steps: one end per step name
 session.next(handler?)       // with steps: validates, saves, then moves
 ```
 

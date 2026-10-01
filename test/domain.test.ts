@@ -94,6 +94,64 @@ describe('a setup that returns its steps', () => {
   })
 })
 
+describe('a payload per step', () => {
+  const definir = (id: string) => defineFormDomain(id, () => {
+    const steps = refSteps({
+      who: { name: { label: 'Name', value: 'Ana' } },
+      where: { city: { label: 'City', value: 'Belo Horizonte' } },
+    })
+
+    return { steps, trace: { value: 'abc' } }
+  })
+
+  it('projects each step on its own, and the whole form through done', () => {
+    const domain = definir('steps-payload').payload({
+      who: ctx => ({ full_name: ctx.values.name, trace: ctx.trace.value }),
+      done: ctx => ({ ...ctx.visible, trace: ctx.trace.value }),
+    })
+
+    const form = domain()
+
+    expect(form.payload.value).toEqual({ name: 'Ana', city: 'Belo Horizonte', trace: 'abc' })
+    expect(form.stepPayloads.who.value).toEqual({ full_name: 'Ana', trace: 'abc' })
+  })
+
+  /** The same default the form's payload has, one step down. */
+  it('a step that declares no projection sends what it holds', () => {
+    const domain = definir('steps-payload-partial').payload({
+      who: ctx => ({ full_name: ctx.values.name }),
+      done: ctx => ctx.visible,
+    })
+
+    expect(domain().stepPayloads.where.value).toEqual({ city: 'Belo Horizonte' })
+  })
+
+  it('follows the fields, like the form payload does', async () => {
+    const domain = definir('steps-payload-reactive').payload({
+      who: ctx => ({ full_name: ctx.values.name }),
+      done: ctx => ctx.visible,
+    })
+
+    const form = domain()
+    form.set({ name: 'Bia' })
+    await nextTick()
+
+    expect(form.stepPayloads.who.value).toEqual({ full_name: 'Bia' })
+  })
+
+  /** Nothing about a plain form changed: no steps, nothing per step. */
+  it('a form without steps has no step payloads', () => {
+    const domain = defineFormDomain('steps-payload-none', () => ({
+      fields: refFields({ name: { label: 'Name', value: 'Ana' } }),
+    })).payload(ctx => ({ who: ctx.visible.name }))
+
+    const form = domain()
+
+    expect(form.payload.value).toEqual({ who: 'Ana' })
+    expect(form.stepPayloads).toEqual({})
+  })
+})
+
 describe('instance and effects', () => {
   it('reset goes back to the initial values', async () => {
     const form = toForm(buildFields())

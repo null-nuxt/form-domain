@@ -496,6 +496,87 @@ void keyedSession.submit({
 })
 
 
+/**
+ * A payload per step: what each one sends is declared with the form, next to
+ * what the whole form sends, and the submit handler is given that body.
+ */
+const projectedWizard = defineFormDomain('guard-step-payload', () => {
+  const projectedSteps = refSteps({
+    identification: { fullName: { label: 'Name', value: '' } },
+    location: { city: { label: 'City', value: '' } },
+  })
+
+  return { steps: projectedSteps, trace: { value: 'abc' } }
+}).payload({
+  identification: ctx => ({ full_name: ctx.values.fullName, trace: ctx.trace.value }),
+  done: ctx => ({ ...ctx.visible, trace: ctx.trace.value }),
+})
+
+const projectedForm = projectedWizard()
+
+const stepBody: string = projectedForm.stepPayloads.identification.value.full_name
+void stepBody
+
+// @ts-expect-error the projection replaced the step's values, so the field key is gone
+void projectedForm.stepPayloads.identification.value.fullName
+
+/** A step that declares no projection sends what it holds. */
+const plainBody: string = projectedForm.stepPayloads.location.value.city
+void plainBody
+
+// @ts-expect-error there is no step by that name
+void projectedForm.stepPayloads.payment
+
+/** `done` is what the whole form sends, exactly as the function form projects it. */
+const wholeBody: string = projectedForm.payload.value.trace
+void wholeBody
+
+const projectedSession = useFormSession(projectedForm)
+
+void projectedSession.submit({
+  identification: ({ payload, values }) => {
+    const sent: string = payload.full_name
+    /** The values are still there: the projection is what it sends, not what it holds. */
+    const held: string = values.fullName
+    void sent
+    void held
+  },
+  done: () => {},
+})
+
+void projectedSession.submit({
+  identification: ({ payload }) => {
+    // @ts-expect-error the step projected `full_name`, and nothing else
+    void payload.fullName
+  },
+  done: () => {},
+})
+
+/**
+ * A projection for a step that does not exist is a compile error, not a key
+ * nobody ever calls. On its own domain: when it bites, the map stops matching
+ * and every type that came out of it goes with it.
+ */
+void defineFormDomain('guard-step-payload-unknown', () => ({
+  steps: refSteps({ only: { a: { label: 'A', value: '' } } }),
+})).payload({
+  // @ts-expect-error there is no step by that name
+  nope: () => ({}),
+  done: () => ({}),
+})
+
+/** Nothing about a form without steps changed: one projection, no step bodies. */
+const plainDomain = defineFormDomain('guard-payload-no-steps', () => ({
+  fields: refFields({ nickname: { label: 'Nickname', value: '' } }),
+})).payload(ctx => ({ nick: ctx.visible.nickname }))
+
+const plainInstance = plainDomain()
+
+void plainInstance.payload.value.nick
+
+// @ts-expect-error a form without steps has no step to project
+void plainInstance.stepPayloads.identification
+
 /** A standalone field sits next to the declarations and keeps its precision. */
 const sharedCpf = refField({ label: 'CPF', value: '', meta: { mask: 'cpf' } })
 const withStandalone = toForm(refFields({ cpf: sharedCpf, name: { label: 'Name', value: '' } }))

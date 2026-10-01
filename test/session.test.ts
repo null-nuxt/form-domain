@@ -377,6 +377,47 @@ describe('useFormSession', () => {
     expect(done).toHaveBeenCalledOnce()
   })
 
+  /**
+   * What the step sends is the domain's business, not the page's: the handler
+   * is handed the body `.payload()` declared for that step.
+   */
+  it('hands each step the body its projection built', async () => {
+    getFormRegistry().delete('session-submit-projected')
+
+    const domain = defineFormDomain('session-submit-projected', () => {
+      const steps = refSteps({
+        who: { name: { label: 'Name', value: 'Ana' } },
+        where: { city: { label: 'City', value: 'Recife' } },
+      })
+
+      return { steps }
+    }).payload({
+      who: ctx => ({ full_name: ctx.values.name }),
+      done: ctx => ({ ...ctx.visible, source: 'wizard' }),
+    })
+
+    const form = domain()
+    const session = useFormSession(form)
+
+    const bodies: unknown[] = []
+    const done = vi.fn()
+
+    const send = session.submit({
+      who: ({ payload }) => void bodies.push(payload),
+      // the step declares no projection, so it sends what it holds
+      where: ({ payload }) => void bodies.push(payload),
+      done,
+    })
+
+    await send()
+    await send()
+
+    expect(bodies).toEqual([{ full_name: 'Ana' }, { city: 'Recife' }])
+    expect(done).toHaveBeenCalledWith({ name: 'Ana', city: 'Recife', source: 'wizard' })
+
+    getFormRegistry().delete('session-submit-projected')
+  })
+
   it('does not finish when the last step refuses', async () => {
     const form = buildWizard('session-submit-refused')
     const session = useFormSession(form)
@@ -424,7 +465,8 @@ describe('useFormSession', () => {
     await settle()
 
     expect(await session.next(saved)).toBe(true)
-    expect(saved).toHaveBeenCalledWith({ step: 'who', values: { name: 'Ana' } })
+    // a form with no projections sends what the step holds
+    expect(saved).toHaveBeenCalledWith({ step: 'who', values: { name: 'Ana' }, payload: { name: 'Ana' } })
     expect(form.steps.current.value).toBe('where')
   })
 

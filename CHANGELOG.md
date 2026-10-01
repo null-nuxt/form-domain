@@ -38,6 +38,21 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`.payload({ who, where, done })`**, a projection per step beside the one for
+  the whole form. A wizard that saves each step sends a body per step, and that
+  body is the domain's business: mapped once where the form is declared instead
+  of in every page that shows it.
+
+  A step's projection reads the same context the form's does, with `values`
+  narrowed to the keys that step declared, and a step that declares none sends
+  what it holds — the same default the form's payload has, one step down. The
+  bodies are on the instance as `form.stepPayloads`, one computed each, and
+  `session.submit` hands each step handler its own through `payload`. `done` is
+  the whole form, exactly as the function form projects it.
+
+  The function form is untouched: a form without steps has `.payload(ctx => ...)`
+  and no step bodies, which is what it had before any of this.
+
 - **`session.submit({ who, where, done })`**, the one thing a wizard's `<form>`
   binds to, keyed by step name. On any step but the last it validates that step,
   hands its handler what that step holds and moves on; on the last it validates

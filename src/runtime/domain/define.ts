@@ -2,7 +2,8 @@ import { computed, effectScope, getCurrentScope, onScopeDispose } from 'vue'
 import { getFormRegistry } from './registry'
 import { createEngine } from '../engine/create'
 import type { ComputedRef } from 'vue'
-import type { AnyFields, Exposed, FieldsOf, FormEngine, SelectedOptions, SetupResult, ValuesOf } from '../types'
+import type { StepsController, StepsInput } from '../steps/create'
+import type { AnyFields, Exposed, FieldsOf, FormEngine, OnlyKnownKeys, SelectedOptions, SetupResult, ValuesOf } from '../types'
 
 /**
  * A form assembled inside a component. The component's own `setup` is already
@@ -73,15 +74,69 @@ type PayloadContext<S extends SetupResult> = Exposed<S> & {
   selected: SelectedOptions<FieldsOf<S>>
 }
 
-export type FormDomainInstance<S extends SetupResult, P, Id extends string = string> =
+/** The steps a setup built, when it built any. */
+type StepsOfSetup<S> = S extends { steps: StepsController<infer T extends StepsInput> } ? T : never
+
+/**
+ * What a step's projection reads: the same context the form's does, with the
+ * values narrowed to the keys that step declared.
+ */
+type StepPayloadContext<S extends SetupResult, K extends keyof StepsOfSetup<S>> = PayloadContext<S> & {
+  values: Pick<ValuesOf<FieldsOf<S>>, keyof StepsOfSetup<S>[K] & keyof ValuesOf<FieldsOf<S>>>
+}
+
+/**
+ * The projections, by step, plus `done` for the whole form.
+ *
+ * Same reserved key as the submit, and for the same reason: the object needs
+ * one key that means the end rather than a step.
+ */
+export type PayloadMap<S extends SetupResult> = {
+  done: (ctx: PayloadContext<S>) => unknown
+} & { [K in keyof StepsOfSetup<S>]?: (ctx: StepPayloadContext<S, K>) => unknown }
+
+/**
+ * The names a projection map may use: the steps, plus `done`. A form without
+ * steps has only `done` — which is the function form, written the long way.
+ */
+type ProjectionKeys<S extends SetupResult> = [StepsOfSetup<S>] extends [never]
+  ? 'done'
+  : (keyof StepsOfSetup<S> & string) | 'done'
+
+/** What one step sends, once the projections are known. */
+type StepBody<S extends SetupResult, SP, K extends keyof StepsOfSetup<S>> = K extends keyof SP
+  ? SP[K]
+  : Pick<ValuesOf<FieldsOf<S>>, keyof StepsOfSetup<S>[K] & keyof ValuesOf<FieldsOf<S>>>
+
+/** Every step's body, by name — an empty record for a form without steps. */
+export type StepBodies<S extends SetupResult, SP> = {
+  [K in keyof StepsOfSetup<S>]: ComputedRef<StepBody<S, SP, K>>
+}
+
+type StepReturns<M> = {
+  [K in Exclude<keyof M, 'done'>]: M[K] extends (...args: never[]) => infer R ? R : never
+}
+
+export type FormDomainInstance<S extends SetupResult, P, SP = object, Id extends string = string> =
   FormEngine<FieldsOf<S>> & Exposed<S> & {
     /** The literal is preserved: it's what lets `useFormDomain('slug')` type its return. */
     id: Id
     payload: ComputedRef<P>
+    /**
+     * What each step sends, by name: its own projection where it declared one,
+     * and otherwise the values it holds — the same default the form's payload
+     * has, one step down.
+     *
+     * A record of computeds rather than a `stepPayload(name)` function because
+     * the step has to be known at the type level: inference through a generic
+     * signature instantiates its parameter with the constraint, and every step
+     * would be handed the union of all of them.
+     */
+    stepPayloads: StepBodies<S, SP>
   }
 
-export interface FormDomain<Meta, S extends SetupResult, P, Id extends string = string> {
-  (): FormDomainInstance<S, P, Id>
+export interface FormDomain<Meta, S extends SetupResult, P, SP = object, Id extends string = string> {
+  (): FormDomainInstance<S, P, SP, Id>
   id: Id
   /**
    * Static, and hung off the factory rather than the instance: a listing reads
@@ -97,17 +152,70 @@ export interface FormDomain<Meta, S extends SetupResult, P, Id extends string = 
    * public surface.
    *
    * One step, so there is no order to get wrong.
+   *
+   * A wizard can project per step instead, keyed by name with `done` for the
+   * whole form — so what leaves for the backend when a step is approved is
+   * declared here too, rather than mapped again in whichever page is showing
+   * the wizard.
    */
-  payload: <P2>(project: (ctx: PayloadContext<S>) => P2) => FormDomain<Meta, S, P2, Id>
+  payload: {
+    <P2>(project: (ctx: PayloadContext<S>) => P2): FormDomain<Meta, S, P2, object, Id>
+    /**
+     * `OnlyKnownKeys` for the same reason every other keyed call here has it:
+     * the constraint alone is checked loosely — a key no step has would be
+     * accepted and then never called, which is the silence this whole module
+     * is against.
+     */
+    <M extends PayloadMap<S>>(
+      projections: M & OnlyKnownKeys<M, ProjectionKeys<S>>,
+    ): FormDomain<Meta, S, ReturnType<M['done']>, StepReturns<M>, Id>
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Projection = (ctx: any) => unknown
+
+/** The shape a wizard's controller is read through here, and nothing more. */
+interface StepsShape {
+  names: ReadonlyArray<string>
+  keysOf: (name: never) => readonly string[]
+}
+
+/**
+ * One computed per step: its projection applied to the step's own values, or
+ * those values as they are. A form without steps gets an empty record, which
+ * is what every form had before any of this existed.
+ */
+function bodiesOf(
+  result: SetupResult,
+  fields: AnyFields,
+  context: object,
+  perStep: Record<string, Projection>,
+): Record<string, ComputedRef<unknown>> {
+  const steps = (result as { steps?: StepsShape }).steps
+  if (!steps) return {}
+
+  const bodies: Record<string, ComputedRef<unknown>> = {}
+
+  for (const name of steps.names) {
+    const keys = steps.keysOf(name as never)
+    bodies[name] = computed(() => {
+      const values = Object.fromEntries(keys.map(key => [key, fields[key]?.value]))
+      const projection = perStep[name]
+
+      return projection ? projection({ ...context, values }) : values
+    })
+  }
+
+  return bodies
 }
 
 function create<Meta, S extends SetupResult, Id extends string>(
   id: Id,
   metadata: Meta,
   setup: () => S,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  project?: (ctx: any) => unknown,
-): FormDomain<Meta, S, unknown, Id> {
+  project?: Projection | Record<string, Projection>,
+): FormDomain<Meta, S, unknown, object, Id> {
   const use = () => {
     const registry = getFormRegistry()
 
@@ -127,6 +235,10 @@ function create<Meta, S extends SetupResult, Id extends string>(
         const engine = createEngine(fields)
         const { fields: _fields, ...exposed } = result as { fields?: AnyFields }
 
+        /** A map keyed by step, or one function for the whole form. */
+        const whole = typeof project === 'function' ? project : project?.done
+        const perStep = typeof project === 'function' ? {} : (project ?? {})
+
         const payloadContext = {
           ...exposed,
           fields,
@@ -143,8 +255,9 @@ function create<Meta, S extends SetupResult, Id extends string>(
           ...exposed,
           id,
           payload: computed(() =>
-            project ? project(payloadContext) : engine.values.value,
+            whole ? whole(payloadContext) : engine.values.value,
           ),
+          stepPayloads: bodiesOf(result, fields, payloadContext, perStep),
           dispose: (): void => {
             engine.dispose()
             scope.stop()
@@ -155,15 +268,15 @@ function create<Meta, S extends SetupResult, Id extends string>(
       registry.set(id, instance)
     }
 
-    return registry.get(id) as FormDomainInstance<S, unknown, Id>
+    return registry.get(id) as FormDomainInstance<S, unknown, object, Id>
   }
 
   const domain = Object.assign(use, {
     id,
     metadata,
-    payload: <P2>(next: (ctx: PayloadContext<S>) => P2) =>
-      create(id, metadata, setup, next) as unknown as FormDomain<Meta, S, P2, Id>,
-  }) as FormDomain<Meta, S, unknown, Id>
+    payload: (next: Projection | Record<string, Projection>) =>
+      create(id, metadata, setup, next),
+  }) as unknown as FormDomain<Meta, S, unknown, object, Id>
 
   return domain
 }
@@ -180,12 +293,12 @@ function create<Meta, S extends SetupResult, Id extends string>(
 export function defineFormDomain<const Id extends string, S extends SetupResult>(
   id: Id,
   setup: () => S,
-): FormDomain<object, S, ValuesOf<FieldsOf<S>>, Id>
+): FormDomain<object, S, ValuesOf<FieldsOf<S>>, object, Id>
 export function defineFormDomain<const Id extends string, Meta extends object, S extends SetupResult>(
   id: Id,
   metadata: Meta,
   setup: () => S,
-): FormDomain<Meta, S, ValuesOf<FieldsOf<S>>, Id>
+): FormDomain<Meta, S, ValuesOf<FieldsOf<S>>, object, Id>
 export function defineFormDomain(
   id: string,
   second: object | (() => SetupResult),
