@@ -464,7 +464,10 @@ because a network that blinked should not empty a select. A **successful** one
 drops a value the new list no longer offers — a value the list cannot match is
 the exact failure the option check exists to prevent, and leaving it there gives
 a select with nothing selected and a schema that rejects what the user is
-looking at.
+looking at. What it goes back to is what the field was **declared** with, not an
+empty string: a field declared `null` means "nothing chosen", and emptied to `''`
+it hands a string schema a value it accepts, so the form passes with no choice
+made.
 
 Only a field that declared `options` can fetch them, the same gate `deriveOptions`
 has. A field with both gets the derived list, and says so in dev.
