@@ -1,6 +1,7 @@
 import { isReactive, nextTick } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
-import { addRule, addRules } from '../src/runtime/fields/register'
+import { string } from 'yup'
+import { addRule, addRules, addSchemas } from '../src/runtime/fields/register'
 import { defineFields, mergeFields, omitFields, pickFields, prefixFields, refField, refFields } from '../src/runtime/fields/declare'
 import { refSteps } from '../src/runtime/steps/create'
 import { toForm } from '../src/runtime/domain/define'
@@ -123,6 +124,38 @@ describe('prefixFields', () => {
     prefixFields('company', address, { label: () => 'Changed' })
 
     expect(address.street.label).toBe('Street')
+  })
+})
+
+describe('a rule for a field that is not here', () => {
+  /**
+   * The types catch this when the keys are known. They are not, where a
+   * fragment's rules are written against the four keys it declared and the form
+   * took two of them — and skipping in silence leaves the fragment promising a
+   * validator that was never attached.
+   */
+  it('says so instead of skipping quietly', () => {
+    const warnings = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fields = refFields({ name: { label: 'Name', value: '' } })
+
+    // the types refuse this; what is being tested is the path that gets around
+    // them — a fragment's rules reaching a form without the field
+    addSchemas(fields, { cpf: string().required() } as never)
+
+    expect(warnings).toHaveBeenCalledOnce()
+    expect(warnings.mock.calls[0]?.[0]).toContain('"cpf"')
+
+    warnings.mockRestore()
+  })
+
+  it('says the same for a rule', () => {
+    const warnings = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fields = refFields({ name: { label: 'Name', value: '' } })
+
+    addRules(fields, { cpf: { canShow: () => true } } as never)
+
+    expect(warnings).toHaveBeenCalledOnce()
+    warnings.mockRestore()
   })
 })
 

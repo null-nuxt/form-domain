@@ -597,6 +597,19 @@ const send = session.submit(async (payload) => {
 `payload` — the domain's projection, or `values` for a plain form — and ignores
 a second call while the first is in flight, because a double click is one click.
 
+A wizard rendered as a `<form>` has one submit, and it takes both ends:
+
+```ts
+const send = session.submit({
+  step: async ({ step, values }) => api.post(`/onboarding/${step}`, values),
+  done: async payload => api.post('/onboarding', payload),
+})
+```
+
+On any step but the last it validates that step, hands `step` what it holds and
+moves on; on the last it validates the whole form and hands `done` the payload.
+The page binds one thing to `@submit` and never asks whose turn it is.
+
 `session.reset()` puts the form back to its declared values and forgets the
 attempt: no messages, nothing visited, no submit counted. Starting over is one
 action, so it resets the form as well.
@@ -674,6 +687,18 @@ whether it moved. A wizard built inside a component hands both over together:
 
 ```ts
 const session = useFormSession({ ...form, steps })
+```
+
+A domain's setup can hand over the steps alone — `steps.fields` is the tree, so
+asking for both back was the same line twice:
+
+```ts
+export default defineFormDomain('signup', metadata, () => {
+  const steps = refSteps({ who: customer, where: address })
+  addSchemas(steps.fields, { ... })
+
+  return { steps }
+})
 ```
 
 `next` also takes the handler for whatever has to succeed before leaving —
@@ -1036,6 +1061,7 @@ rest, so the wizard would walk in an order nobody wrote.
 | two steps declaring the same field | **compile time** |
 | `addStepRules` naming a step that doesn't exist | **compile time** |
 | `addGroupRule` naming a field the form doesn't have | **compile time** |
+| a rule or schema for a field the form doesn't have, where the types were bypassed | runtime warning |
 | `setErrors` naming a field that doesn't exist | **compile time** |
 | `goTo()` naming a step that doesn't exist | **compile time** |
 | `deriveOptions` on a field that declared no options | **compile time** |

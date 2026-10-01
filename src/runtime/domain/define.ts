@@ -2,7 +2,7 @@ import { computed, effectScope, getCurrentScope, onScopeDispose } from 'vue'
 import { getFormRegistry } from './registry'
 import { createEngine } from '../engine/create'
 import type { ComputedRef } from 'vue'
-import type { AnyFields, Exposed, FormEngine, SelectedOptions, SetupResult, ValuesOf } from '../types'
+import type { AnyFields, Exposed, FieldsOf, FormEngine, SelectedOptions, SetupResult, ValuesOf } from '../types'
 
 /**
  * A form assembled inside a component. The component's own `setup` is already
@@ -66,15 +66,15 @@ export function toForm<F extends AnyFields>(
 }
 
 type PayloadContext<S extends SetupResult> = Exposed<S> & {
-  fields: S['fields']
+  fields: FieldsOf<S>
   /** Only what a rule is currently letting through. */
-  visible: Partial<ValuesOf<S['fields']>>
+  visible: Partial<ValuesOf<FieldsOf<S>>>
   /** The chosen option per field — where a label goes into the payload from. */
-  selected: SelectedOptions<S['fields']>
+  selected: SelectedOptions<FieldsOf<S>>
 }
 
 export type FormDomainInstance<S extends SetupResult, P, Id extends string = string> =
-  FormEngine<S['fields']> & Exposed<S> & {
+  FormEngine<FieldsOf<S>> & Exposed<S> & {
     /** The literal is preserved: it's what lets `useFormDomain('slug')` type its return. */
     id: Id
     payload: ComputedRef<P>
@@ -121,12 +121,15 @@ function create<Meta, S extends SetupResult, Id extends string>(
 
       const instance = scope.run(() => {
         const result = setup()
-        const engine = createEngine(result.fields)
-        const { fields: _fields, ...exposed } = result
+
+        // `steps.fields` is the tree; a wizard's setup should not have to say it twice
+        const fields = 'fields' in result ? result.fields : result.steps.fields
+        const engine = createEngine(fields)
+        const { fields: _fields, ...exposed } = result as { fields?: AnyFields }
 
         const payloadContext = {
           ...exposed,
-          fields: result.fields,
+          fields,
           get visible() {
             return engine.visible.value
           },
@@ -177,12 +180,12 @@ function create<Meta, S extends SetupResult, Id extends string>(
 export function defineFormDomain<const Id extends string, S extends SetupResult>(
   id: Id,
   setup: () => S,
-): FormDomain<object, S, ValuesOf<S['fields']>, Id>
+): FormDomain<object, S, ValuesOf<FieldsOf<S>>, Id>
 export function defineFormDomain<const Id extends string, Meta extends object, S extends SetupResult>(
   id: Id,
   metadata: Meta,
   setup: () => S,
-): FormDomain<Meta, S, ValuesOf<S['fields']>, Id>
+): FormDomain<Meta, S, ValuesOf<FieldsOf<S>>, Id>
 export function defineFormDomain(
   id: string,
   second: object | (() => SetupResult),

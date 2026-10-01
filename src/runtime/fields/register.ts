@@ -66,6 +66,26 @@ export type RuleFor<F extends AnyFields, K extends keyof F> =
       }
     : { deriveOptions?: never, loadOptions?: never })
 
+/**
+ * A key the types could not check, named for a field that is not there.
+ *
+ * It happens where the fields arrive wider than they really are — a fragment's
+ * rules written against its four keys, applied to a form that took two of them.
+ * Skipped in silence, the fragment promises validation that was never attached
+ * and nothing says so until the form accepts something it should not. Not gated
+ * to dev for that reason: a validator that never ran is worth a line in the
+ * server's log too.
+ */
+const warnIfMissing = (what: 'rule' | 'schema', key: string, present: boolean) => {
+  if (present) return
+
+  console.warn(
+    `[@null-nuxt/form-domain] no field named "${key}" here, so its ${what} was not attached. `
+    + `A fragment's rules name the keys it declared — check the form has them, `
+    + `or that the names were not renamed by \`prefixFields\`.`,
+  )
+}
+
 export function addRules<F extends AnyFields, R>(
   fields: F,
   rules: R
@@ -74,6 +94,8 @@ export function addRules<F extends AnyFields, R>(
 ): void {
   for (const [key, rule] of Object.entries(rules as Record<string, unknown>)) {
     const target = fields[key]
+    warnIfMissing('rule', key, target !== undefined)
+
     if (target && rule) addRule(target, rule as FieldRule<unknown, unknown>)
   }
 }
@@ -110,6 +132,8 @@ export function addSchemas<F extends AnyFields, S>(
 ): void {
   for (const [key, schema] of Object.entries(schemas as Record<string, unknown>)) {
     const target = fields[key]
+    warnIfMissing('schema', key, target !== undefined)
+
     if (target && schema) addSchema(target, schema as SchemaSource)
   }
 }
@@ -148,6 +172,8 @@ export function addGroupRule(
 
   for (const key of keys) {
     const field = fields[key]
+    warnIfMissing('rule', key, field !== undefined)
+
     if (!field) continue
 
     // replaced rather than pushed into, so the reactive write reaches what is watching

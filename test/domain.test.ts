@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { addRule } from '../src/runtime/fields/register'
 import { refFields } from '../src/runtime/fields/declare'
 import { defineFormDomain, toForm } from '../src/runtime/domain/define'
+import { refSteps } from '../src/runtime/steps/create'
 import { getFormRegistry } from '../src/runtime/domain/registry'
 import { buildFields } from './support/fields'
 
@@ -66,6 +67,30 @@ describe('a shared domain', () => {
 
     expect(domain.metadata).toEqual({})
     expect(domain().values.value.name).toBe('')
+  })
+})
+
+describe('a setup that returns its steps', () => {
+  /** `steps.fields` is the tree; asking for both back was the same line twice. */
+  it('derives the fields from the steps', () => {
+    getFormRegistry().delete('steps-only')
+
+    const domain = defineFormDomain('steps-only', () => {
+      const steps = refSteps({
+        who: { name: { label: 'Name', value: '' } },
+        where: { city: { label: 'City', value: '' } },
+      })
+
+      return { steps }
+    })
+
+    const form = domain()
+
+    expect(Object.keys(form.values.value)).toEqual(['name', 'city'])
+    expect(form.steps.current.value).toBe('who')
+    expect(form.register('city').name).toBe('city')
+
+    getFormRegistry().delete('steps-only')
   })
 })
 

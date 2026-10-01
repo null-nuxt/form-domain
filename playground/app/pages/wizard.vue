@@ -100,16 +100,23 @@ onMounted(() => {
 })
 
 /**
- * Each approved step is saved before the wizard moves — a gate, not a side
- * effect: it runs after the step validated, and the server can still say no.
+ * One submit for the whole wizard: `step` saves each approved step before it is
+ * left — a gate, not a side effect, so the server can still say no — and `done`
+ * runs on the last one. The page never asks whose turn it is.
  */
-const advance = () => session.next(async ({ step, values }) => {
-  await new Promise(resolve => setTimeout(resolve, 400))
+const send = session.submit({
+  step: async ({ step, values }) => {
+    await new Promise(resolve => setTimeout(resolve, 400))
 
-  if (step === 'who' && values.email === 'taken@example.com') {
-    session.setErrors({ email: 'already registered' })
-    return false
-  }
+    if (step === 'who' && values.email === 'taken@example.com') {
+      session.setErrors({ email: 'already registered' })
+      return false
+    }
+  },
+  done: async (payload) => {
+    await new Promise(resolve => setTimeout(resolve, 400))
+    console.info('sent', payload)
+  },
 })
 </script>
 
@@ -129,7 +136,7 @@ const advance = () => session.next(async ({ step, values }) => {
 
     <form
       style="display:grid; gap:.8rem"
-      @submit.prevent="advance"
+      @submit.prevent="send"
     >
       <!-- only the active step's fields, and register() types each key -->
       <!-- the bindings say which it is: a choice arrives with its list -->

@@ -230,10 +230,20 @@ export interface FormEngine<F extends AnyFields> {
   dispose: () => void
 }
 
-/** The reserved key the setup uses to hand its fields to the engine. */
-export interface SetupResult {
-  fields: AnyFields
-}
+/**
+ * What a setup hands to the engine: its fields, or the steps they were built
+ * from.
+ *
+ * A wizard's setup already returns `steps`, and `steps.fields` IS the tree —
+ * asking for both back was two lines saying the same thing, and one of them was
+ * the one that could be wrong.
+ */
+export type SetupResult = { fields: AnyFields } | { steps: { fields: AnyFields } }
+
+/** The tree, however the setup chose to hand it over. */
+export type FieldsOf<S> = S extends { fields: infer F extends AnyFields }
+  ? F
+  : S extends { steps: { fields: infer F extends AnyFields } } ? F : never
 
 /** Everything the setup returned except the fields, exposed untouched. */
 export type Exposed<S> = Omit<S, 'fields'>

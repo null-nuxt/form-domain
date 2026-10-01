@@ -49,6 +49,7 @@ type PayloadOf<Form> = Form extends { payload: ComputedRef<infer P> }
  */
 interface StepsTarget {
   current: ComputedRef<string>
+  visibleNames: ComputedRef<readonly string[]>
   keysOf(name: never): readonly string[]
   next(gate?: () => boolean | Promise<boolean>): Promise<ValidationResult<unknown>>
 }
@@ -109,8 +110,33 @@ export type FormSession<Form> = {
    * showing a form nobody has touched with everything already filled in.
    */
   reset: () => void
-  submit: (handler: (payload: PayloadOf<Form>) => unknown) => (event?: Event) => Promise<void>
+  /**
+   * The one thing a `<form>` submits to.
+   *
+   * Given a function, it validates everything and sends. Given `step` and
+   * `done`, it is a wizard's submit: on any step but the last it validates that
+   * step, hands `step` what it holds, and moves on; on the last it validates the
+   * whole form and hands `done` the payload. The page stops having to know
+   * whose turn it is, and `isLast` stops appearing in the template.
+   */
+  submit: {
+    /**
+     * Two signatures rather than one taking a union: a union parameter makes
+     * TypeScript check a handler against both shapes at once, and a function
+     * whose own type is loose stops matching either.
+     */
+    (handler: (payload: PayloadOf<Form>) => unknown): (event?: Event) => Promise<void>
+    // eslint-disable-next-line @typescript-eslint/unified-signatures
+    (handlers: SubmitHandlers<Form>): (event?: Event) => Promise<void>
+  }
 } & StepHandling<Form>
+
+/** The two ends of a wizard's submit: leaving a step, and finishing. */
+export type SubmitHandlers<Form> = {
+  done: (payload: PayloadOf<Form>) => unknown
+} & (Form extends { steps: StepsTarget }
+  ? { step?: (context: StepContext<Form>) => unknown }
+  : { step?: never })
 
 /**
  * The attempt: what was tried, what came back, and what is worth showing about
@@ -253,9 +279,7 @@ function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form>
   const payloadOf = () =>
     ('payload' in form ? (form as { payload: ComputedRef<unknown> }).payload.value : form.values.value)
 
-  const submit = (handler: (payload: never) => unknown) => async (event?: Event) => {
-    event?.preventDefault()
-
+  const sendEverything = async (done: (payload: never) => unknown) => {
     // a second click while the first is still in flight is the same click
     if (submitting.value) return
 
@@ -267,11 +291,30 @@ function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form>
       rememberResult(result)
       if (!result.valid) return
 
-      await handler(payloadOf() as never)
+      await done(payloadOf() as never)
     }
     finally {
       submitting.value = false
     }
+  }
+
+  /** On the last step there is nothing ahead, so submitting means finishing. */
+  const onTheLastStep = () => {
+    if (!steps) return true
+
+    const visible = steps.visibleNames.value
+    return visible.indexOf(steps.current.value) === visible.length - 1
+  }
+
+  const submit = (
+    handler: ((payload: never) => unknown) | { done: (payload: never) => unknown, step?: (context: never) => unknown },
+  ) => async (event?: Event) => {
+    event?.preventDefault()
+
+    if (typeof handler === 'function') return sendEverything(handler)
+    if (onTheLastStep()) return sendEverything(handler.done)
+
+    await next(handler.step as undefined)
   }
 
   const steps = (form as { steps?: StepsTarget }).steps

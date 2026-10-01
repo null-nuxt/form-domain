@@ -308,6 +308,38 @@ describe('useFormSession', () => {
     return domain()
   }
 
+  /**
+   * A wizard rendered as a `<form>` has one submit, and the page should not
+   * have to know whose turn it is.
+   */
+  it('advances on every step but the last, and finishes on it', async () => {
+    const form = buildWizard('session-submit-both')
+    const session = useFormSession(form)
+
+    const left: string[] = []
+    const done = vi.fn()
+    const send = session.submit({ step: ({ step }) => void left.push(step), done })
+
+    await send()
+    expect(left).toEqual([])
+    expect(done).not.toHaveBeenCalled()
+
+    form.set({ name: 'Ana' })
+    await settle()
+    await send()
+
+    expect(left).toEqual(['who'])
+    expect(form.steps.current.value).toBe('where')
+    expect(done).not.toHaveBeenCalled()
+
+    form.set({ city: 'Recife' })
+    await settle()
+    await send()
+
+    expect(done).toHaveBeenCalledOnce()
+    expect(form.steps.current.value).toBe('where')
+  })
+
   /** A wizard's step is an attempt too, so `next` feeds the same memory. */
   it('next shows what the step refused, and moves on when it passes', async () => {
     const form = buildWizard('session-wizard')

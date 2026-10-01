@@ -8,6 +8,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A rule or schema for a field the form does not have says so**, instead of
+  being skipped in silence. The types catch it wherever the keys are known; this
+  is for where they are not — a fragment's rules written against the keys it
+  declared, applied to a form that took some of them — and silence there means a
+  fragment promising a validator that was never attached.
+
 - **A file under `forms/` that is not a domain is skipped**, with a line in dev
   naming it, instead of reaching the catalog as `undefined` and failing at
   whoever reads it next.
@@ -31,6 +37,12 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   only the field's own value, which is an example rather than a constraint.
 
 ### Added
+
+- **`session.submit({ step, done })`**, the one thing a wizard's `<form>` binds
+  to. On any step but the last it validates that step, hands `step` what it
+  holds and moves on; on the last it validates the whole form and hands `done`
+  the payload — so the page stops asking whose turn it is, and `isLast` stops
+  appearing in the template.
 
 - **`prefixFields`**, for the same fragment twice in one form — two addresses, a
   billing block beside a delivery one. It renames the keys and, when asked, the
@@ -61,6 +73,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   remembering to say so.
 
 ### Changed
+
+- **A domain's setup can return `{ steps }` alone.** `steps.fields` is the tree,
+  so returning both was the same line twice, and one of them was the one that
+  could be wrong.
 
 - **A session is shared by everything looking at the same form.** It used to
   belong to whoever called `useFormSession`, so splitting a form across
