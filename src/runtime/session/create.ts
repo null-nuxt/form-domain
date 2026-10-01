@@ -4,6 +4,7 @@ import { getFormSessions } from './registry'
 import { perRequest } from '../request'
 import type { ComputedRef } from 'vue'
 import type { AnyFields } from '../types'
+import type { StepsController, StepsInput } from '../steps/create'
 import type { ValidationResult } from '../standard'
 
 /** What the session remembers about one message. */
@@ -131,12 +132,26 @@ export type FormSession<Form> = {
   }
 } & StepHandling<Form>
 
-/** The two ends of a wizard's submit: leaving a step, and finishing. */
+/** The steps a form was built with, recovered from the controller it exposes. */
+type StepsOf<Form> = Form extends { steps: StepsController<infer T extends StepsInput> } ? T : never
+
+/**
+ * What a wizard's submit does, by step, plus what it does at the end.
+ *
+ * Keyed by name like everything else here — and the name is what buys the
+ * typing: each handler is given exactly the values of the step it is for,
+ * present rather than optional, and a name no step has fails to compile.
+ */
 export type SubmitHandlers<Form> = {
   done: (payload: PayloadOf<Form>) => unknown
-} & (Form extends { steps: StepsTarget }
-  ? { step?: (context: StepContext<Form>) => unknown }
-  : { step?: never })
+} & ([StepsOf<Form>] extends [never]
+  ? object
+  : {
+      [K in keyof StepsOf<Form>]?: (context: {
+        step: K
+        values: Pick<ValuesOf<Form>, keyof StepsOf<Form>[K] & keyof ValuesOf<Form>>
+      }) => unknown
+    })
 
 /**
  * The attempt: what was tried, what came back, and what is worth showing about
@@ -306,15 +321,16 @@ function buildSession<Form extends SessionTarget>(form: Form): FormSession<Form>
     return visible.indexOf(steps.current.value) === visible.length - 1
   }
 
-  const submit = (
-    handler: ((payload: never) => unknown) | { done: (payload: never) => unknown, step?: (context: never) => unknown },
-  ) => async (event?: Event) => {
+  type Keyed = { done: (payload: never) => unknown } & Record<string, ((argument: never) => unknown) | undefined>
+
+  const submit = (handler: ((payload: never) => unknown) | Keyed) => async (event?: Event) => {
     event?.preventDefault()
 
     if (typeof handler === 'function') return sendEverything(handler)
-    if (onTheLastStep()) return sendEverything(handler.done)
+    if (onTheLastStep() || !steps) return sendEverything(handler.done)
 
-    await next(handler.step as undefined)
+    // the handler for the step being left, if it has one; otherwise just move
+    await next(handler[steps.current.value] as undefined)
   }
 
   const steps = (form as { steps?: StepsTarget }).steps

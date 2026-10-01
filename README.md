@@ -597,18 +597,26 @@ const send = session.submit(async (payload) => {
 `payload` — the domain's projection, or `values` for a plain form — and ignores
 a second call while the first is in flight, because a double click is one click.
 
-A wizard rendered as a `<form>` has one submit, and it takes both ends:
+A wizard rendered as a `<form>` has one submit, and it takes every end of it,
+keyed by step name:
 
 ```ts
 const send = session.submit({
-  step: async ({ step, values }) => api.post(`/onboarding/${step}`, values),
-  done: async payload => api.post('/onboarding', payload),
+  who: async ({ values }) => api.post('/onboarding', values),
+  where: async ({ values }) => api.patch('/onboarding/address', values),
+  done: async payload => api.post('/onboarding/finish', payload),
 })
 ```
 
-On any step but the last it validates that step, hands `step` what it holds and
-moves on; on the last it validates the whole form and hands `done` the payload.
-The page binds one thing to `@submit` and never asks whose turn it is.
+On any step but the last it validates that step, hands its handler what that
+step holds and moves on; on the last it validates the whole form and hands
+`done` the payload. The page binds one thing to `@submit` and never asks whose
+turn it is.
+
+Keyed by name because the name is what buys the typing: each handler receives
+exactly the values of its own step, present rather than optional, and a name no
+step has fails to compile. A step without a handler is simply walked past. For
+the same reason `done` is a reserved step name.
 
 `session.reset()` puts the form back to its declared values and forgets the
 attempt: no messages, nothing visited, no submit counted. Starting over is one
@@ -1061,6 +1069,7 @@ rest, so the wizard would walk in an order nobody wrote.
 | two steps declaring the same field | **compile time** |
 | `addStepRules` naming a step that doesn't exist | **compile time** |
 | `addGroupRule` naming a field the form doesn't have | **compile time** |
+| `submit` naming a step that doesn't exist | **compile time** |
 | a rule or schema for a field the form doesn't have, where the types were bypassed | runtime warning |
 | `setErrors` naming a field that doesn't exist | **compile time** |
 | `goTo()` naming a step that doesn't exist | **compile time** |

@@ -36,7 +36,8 @@ type KeysOfOtherSteps<T extends StepsInput, K extends keyof T> = {
  *
  * A step named with a number is refused for a duller reason: JavaScript orders
  * integer-like keys ahead of the rest, so `{ '2': ..., '1': ... }` would walk
- * in an order nobody wrote.
+ * in an order nobody wrote. And one named `done` is refused because a submit
+ * keyed by step name needs one key for the end of the wizard, and that is it.
  *
  * The option check rides along, so a wrong option fails at the step that
  * declared it rather than inside the merged tree.
@@ -44,6 +45,8 @@ type KeysOfOtherSteps<T extends StepsInput, K extends keyof T> = {
 export type CheckedSteps<T extends StepsInput> = {
   [K in keyof T]: K extends number | `${number}`
     ? { __numericStepName: 'a step named with a number would be reordered by the runtime — name it for what it asks' }
+    : K extends 'done'
+      ? { __reservedStepName: '`done` is what a submit calls at the end, so a step cannot be called that' }
     : string extends keyof T[K]
       ? { __fieldKeysNotKnown: 'this step\'s keys are not known here, so the wizard would accept any key — pass a concrete declaration' }
       : [keyof T[K] & KeysOfOtherSteps<T, K>] extends [never]

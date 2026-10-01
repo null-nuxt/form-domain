@@ -38,11 +38,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- **`session.submit({ step, done })`**, the one thing a wizard's `<form>` binds
-  to. On any step but the last it validates that step, hands `step` what it
-  holds and moves on; on the last it validates the whole form and hands `done`
-  the payload — so the page stops asking whose turn it is, and `isLast` stops
-  appearing in the template.
+- **`session.submit({ who, where, done })`**, the one thing a wizard's `<form>`
+  binds to, keyed by step name. On any step but the last it validates that step,
+  hands its handler what that step holds and moves on; on the last it validates
+  the whole form and hands `done` the payload — so the page stops asking whose
+  turn it is, and `isLast` stops appearing in the template.
+
+  The name is what buys the typing: a handler gets exactly the values of its own
+  step, present rather than optional, and a name no step has fails to compile.
+  `done` becomes a reserved step name.
 
 - **`prefixFields`**, for the same fragment twice in one form — two addresses, a
   billing block beside a delivery one. It renames the keys and, when asked, the

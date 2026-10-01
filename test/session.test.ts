@@ -318,7 +318,12 @@ describe('useFormSession', () => {
 
     const left: string[] = []
     const done = vi.fn()
-    const send = session.submit({ step: ({ step }) => void left.push(step), done })
+
+    // keyed by step name, like everything else that addresses a step
+    const send = session.submit({
+      who: ({ step, values }) => void left.push(`${step}:${values.name}`),
+      done,
+    })
 
     await send()
     expect(left).toEqual([])
@@ -328,7 +333,7 @@ describe('useFormSession', () => {
     await settle()
     await send()
 
-    expect(left).toEqual(['who'])
+    expect(left).toEqual(['who:Ana'])
     expect(form.steps.current.value).toBe('where')
     expect(done).not.toHaveBeenCalled()
 

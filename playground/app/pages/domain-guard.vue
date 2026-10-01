@@ -435,16 +435,27 @@ void companyZip
 // @ts-expect-error the prefix renamed it, so the old name is gone from the copy
 void prefixFields('company', { zip: { label: 'Postcode', value: '' } }).zip
 
+/** `done` is the end of the wizard, so a step cannot take the name. */
+refSteps({
+  // @ts-expect-error `done` is reserved
+  done: { first: { label: 'First', value: '' } },
+  after: { last: { label: 'Last', value: '' } },
+})
+
 /**
  * A step hands its handler the values it holds — never the payload, which is a
  * projection of the WHOLE form and belongs to the submit.
  */
-const paidDomain = defineFormDomain('guard-step-values', () => {
-  const paidSteps = refSteps({ who: { fullName: { label: 'Name', value: '' } } })
-  return { fields: paidSteps.fields, steps: paidSteps }
+const paidWizard = defineFormDomain('guard-step-values', () => {
+  const paidSteps = refSteps({
+    identification: { fullName: { label: 'Name', value: '' } },
+    location: { city: { label: 'City', value: '' } },
+  })
+
+  return { steps: paidSteps }
 }).payload(() => ({ projected: 1 }))
 
-const paidSession = useFormSession(paidDomain())
+const paidSession = useFormSession(paidWizard())
 
 void paidSession.next(({ values }) => {
   const fromTheStep: string | undefined = values.fullName
@@ -455,6 +466,35 @@ void paidSession.next(({ values }) => {
   // @ts-expect-error the step holds fields; `projected` only exists in the payload
   void values.projected
 })
+
+/**
+ * A submit keyed by step name: each handler is given the values of its own
+ * step, and a name no step has does not compile.
+ */
+const keyedSession = useFormSession(paidWizard())
+
+void keyedSession.submit({
+  identification: ({ values }) => {
+    const onlyThisStep: string = values.fullName
+    void onlyThisStep
+  },
+  done: () => {},
+})
+
+void keyedSession.submit({
+  identification: ({ values }) => {
+    // @ts-expect-error `city` belongs to the other step
+    void values.city
+  },
+  done: () => {},
+})
+
+void keyedSession.submit({
+  // @ts-expect-error there is no step by that name
+  payment: () => {},
+  done: () => {},
+})
+
 
 /** A standalone field sits next to the declarations and keeps its precision. */
 const sharedCpf = refField({ label: 'CPF', value: '', meta: { mask: 'cpf' } })

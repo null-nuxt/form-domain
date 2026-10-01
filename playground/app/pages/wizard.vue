@@ -100,15 +100,16 @@ onMounted(() => {
 })
 
 /**
- * One submit for the whole wizard: `step` saves each approved step before it is
- * left — a gate, not a side effect, so the server can still say no — and `done`
- * runs on the last one. The page never asks whose turn it is.
+ * One submit for the whole wizard, keyed by step: each handler saves the step
+ * it is named for before that step is left — a gate, not a side effect, so the
+ * server can still say no — and `done` runs on the last one. The page never asks
+ * whose turn it is, and each handler gets the values of its own step.
  */
 const send = session.submit({
-  step: async ({ step, values }) => {
+  who: async ({ values }) => {
     await new Promise(resolve => setTimeout(resolve, 400))
 
-    if (step === 'who' && values.email === 'taken@example.com') {
+    if (values.email === 'taken@example.com') {
       session.setErrors({ email: 'already registered' })
       return false
     }
