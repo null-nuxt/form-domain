@@ -8,6 +8,17 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **A cookbook**, for the six patterns a real form turned out to need: a fragment
+  that brings its rules, a block that only applies sometimes, a list that depends
+  on another field, a field filled in by a lookup, a wizard that validates one step
+  at a time, and a payload per step. The README explains why things are shaped the
+  way they are, which is not what someone arriving wants first.
+
+  Each recipe is typechecked rather than taken on trust: they live in a playground
+  page as well, so a snippet that stops compiling fails the build. Writing it
+  caught one — a wizard template reading `steps.activeKeys` gets the ref itself, so
+  the recipe destructures.
+
 - **`scopeOf(fragment, fields, prefix?)`**, so a fragment can bring its rules to a
   form that renamed its keys. `prefixFields` put the same block in a form twice
   and carried the declaration across; everything that came WITH the fragment — its

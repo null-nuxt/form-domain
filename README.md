@@ -7,6 +7,9 @@ Schema-library agnostic: anything implementing
 [Standard Schema](https://standardschema.dev) works — Zod, Valibot, ArkType,
 yup 1.7+.
 
+In a hurry? The [cookbook](./COOKBOOK.md) has the six patterns a real form turned
+out to need, ready to copy. This file is the why.
+
 **Start** · [Installation](#installation) · [A form inside a component](#a-form-inside-a-component) · [A shared domain](#a-shared-domain)
 
 **Why it looks like this** · [Why a setup and not a builder](#why-a-setup-and-not-a-builder) · [The names](#the-names-and-what-each-prefix-promises) · [Registration takes its target](#registration-takes-its-target)
@@ -21,7 +24,7 @@ yup 1.7+.
 
 **Around the form** · [Seeing what a form is doing](#seeing-what-a-form-is-doing) · [Catalog](#catalog) · [Two ways in](#two-ways-in-and-which-is-for-what) · [Scaling up](#scaling-up) · [Testing a domain](#testing-a-domain)
 
-**Reference** · [What the compiler guarantees](#what-the-compiler-guarantees) · [API](#api) · [Development](#development)
+**Reference** · [Cookbook](./COOKBOOK.md) · [What the compiler guarantees](#what-the-compiler-guarantees) · [API](#api) · [Development](#development)
 
 ## Installation
 
@@ -1441,6 +1444,11 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+`playground/app/pages/cookbook-check.vue` is every snippet from the cookbook in
+one page, so the recipes are typechecked rather than taken on trust. Same for the
+`*-guard.vue` pages, where each `@ts-expect-error` is a guarantee: when one stops
+holding, the directive goes unused and typecheck fails.
 
 `pnpm test` runs two projects. **unit** runs the runtime against stubs — no Nuxt,
 and where all the behaviour is pinned. **nuxt** boots the playground so the public
