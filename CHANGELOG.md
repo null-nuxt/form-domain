@@ -4,7 +4,7 @@ All notable changes to this package are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the package
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## 0.5.0 — 2026-10-02
 
 ### Added
 
@@ -51,24 +51,6 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   whether to show a spinner rather than why. `loadingOptions` stays for the half
   that is about a list, and the inspector shows the field as busy either way.
 
-### Fixed
-
-- **A rule with `onChange` or `loadOptions` attached after the form was built says
-  so.** Those two are watchers the engine creates when it is built, so one
-  attached afterwards never ran — and a lookup that simply never happens is the
-  hardest kind of nothing to find. It is easy to reach now that a fragment's rules
-  arrive as a function call, which is how this was noticed.
-
-- **`set()` says so when it is given a key the form does not have**, instead of
-  skipping it in silence. The types answer this wherever the keys are known; where
-  they are not, the likeliest reason is a fragment's rule patching its own names on
-  a form that renamed them — which is what `scopeOf` is for.
-
-- **An `onChange` that throws is reported, naming the field**, instead of leaving
-  an unhandled rejection that names neither it nor the rule. Nobody awaits a
-  watcher's callback, so the throw belonged to no one — and in a test run it took
-  the whole suite down.
-
 - **A way to test a domain**, which there was no documented path for:
   `@null-nuxt/form-domain/testing` with `createTestForm(domain)`, `resetForms()`,
   `forgetForm(id)` and `settle()`.
@@ -87,6 +69,24 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **`@null-nuxt/form-domain/runtime`** as an export, so `#forms` can be aliased
   to something stable in a test run that has no Nuxt resolving it.
+
+### Fixed
+
+- **A rule with `onChange` or `loadOptions` attached after the form was built says
+  so.** Those two are watchers the engine creates when it is built, so one
+  attached afterwards never ran — and a lookup that simply never happens is the
+  hardest kind of nothing to find. It is easy to reach now that a fragment's rules
+  arrive as a function call, which is how this was noticed.
+
+- **`set()` says so when it is given a key the form does not have**, instead of
+  skipping it in silence. The types answer this wherever the keys are known; where
+  they are not, the likeliest reason is a fragment's rule patching its own names on
+  a form that renamed them — which is what `scopeOf` is for.
+
+- **An `onChange` that throws is reported, naming the field**, instead of leaving
+  an unhandled rejection that names neither it nor the rule. Nobody awaits a
+  watcher's callback, so the throw belonged to no one — and in a test run it took
+  the whole suite down.
 
 ## 0.4.0 — 2026-10-01
 
