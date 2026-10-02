@@ -152,6 +152,7 @@ const module: NuxtModule<ModuleOptions> = defineNuxtModule<ModuleOptions>({
         { name: 'pickFields', from: resolver.resolve('./runtime/fields/declare') },
         { name: 'omitFields', from: resolver.resolve('./runtime/fields/declare') },
         { name: 'prefixFields', from: resolver.resolve('./runtime/fields/declare') },
+        { name: 'scopeOf', from: resolver.resolve('./runtime/fields/scope') },
         { name: 'refSteps', from: resolver.resolve('./runtime/steps/create') },
         { name: 'addStepRules', from: resolver.resolve('./runtime/steps/register') },
         { name: 'useFormSession', from: resolver.resolve('./runtime/session/create') },

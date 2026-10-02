@@ -14,6 +14,12 @@ defineProps<{
   mask?: string
   errorMessage?: string
   disabled?: boolean
+  /**
+   * Whatever the field is waiting on — a list being fetched, or a rule filling it
+   * in. Declared here because `field.busy` is always an answer, so an input that
+   * ignored it would be handed `loading="false"` as a DOM attribute.
+   */
+  loading?: boolean
 }>()
 
 defineEmits<{ 'update:modelValue': [value: string], blur: [] }>()
@@ -37,7 +43,11 @@ defineEmits<{ 'update:modelValue': [value: string], blur: [] }>()
       @blur="$emit('blur')"
     >
     <small
-      v-if="mask"
+      v-if="loading"
+      style="opacity:.5"
+    >waiting…</small>
+    <small
+      v-else-if="mask"
       style="opacity:.5"
     >mask: {{ mask }}</small>
     <small

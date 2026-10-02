@@ -608,6 +608,50 @@ addRules(waiting, {
 const spinning: boolean = waiting.city.busy
 void spinning
 
+/**
+ * A fragment's own key space, over a form that renamed it. The form has to carry
+ * the renamed keys, and the view is typed as the fragment — which is what lets the
+ * rules be written once.
+ */
+const addressBlock = defineFields({
+  zipCode: { label: 'Postcode', value: '' },
+  city: { label: 'City', value: '' },
+})
+
+const bothAddresses = refFields(mergeFields([
+  addressBlock,
+  prefixFields('company', addressBlock),
+]))
+
+const companyView = scopeOf(addressBlock, bothAddresses, 'company')
+
+/** The fragment's names, carrying the form's own fields. */
+const scopedCity: string = companyView.city.value
+void scopedCity
+
+// @ts-expect-error the view is the fragment, so the prefixed name is not in it
+void companyView.companyCity
+
+// @ts-expect-error this form carries no `billing*` keys
+void scopeOf(addressBlock, bothAddresses, 'billing')
+
+/** Rules written against the fragment, patching keys only it knows about. */
+addRules(companyView, {
+  zipCode: {
+    onChange: (_zipCode, { patch, busy }) => {
+      busy('city')
+      patch({ city: 'Recife' })
+    },
+  },
+})
+
+addRules(scopeOf(addressBlock, bothAddresses), {
+  zipCode: {
+    // @ts-expect-error `companyCity` is not a key of the fragment
+    onChange: (_zipCode, { patch }) => patch({ companyCity: 'Recife' }),
+  },
+})
+
 /** A standalone field sits next to the declarations and keeps its precision. */
 const sharedCpf = refField({ label: 'CPF', value: '', meta: { mask: 'cpf' } })
 const withStandalone = toForm(refFields({ cpf: sharedCpf, name: { label: 'Name', value: '' } }))

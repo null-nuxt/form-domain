@@ -147,7 +147,23 @@ export function createEngine<F extends AnyFields>(fields: F): FormEngine<F> {
 
   const set = (patch: Partial<ValuesOf<F>>) => {
     for (const [key, next] of Object.entries(patch as Record<string, unknown>)) {
-      if (key in fields) fields[key]!.value = next
+      if (key in fields) {
+        fields[key]!.value = next
+        continue
+      }
+
+      /**
+       * Said rather than skipped. The types answer this wherever the keys are
+       * known; where they are not, a patch naming a field the form does not have
+       * wrote nothing and said nothing — and the likeliest reason is a fragment's
+       * rule patching its own names on a form that renamed them, which is what
+       * `scopeOf` is for.
+       */
+      console.warn(
+        `[@null-nuxt/form-domain] set: this form has no field named "${key}", so it was not written. `
+        + `A fragment's rule patches the keys it declared — attach it through \`scopeOf\` `
+        + `when the form renamed them.`,
+      )
     }
   }
 

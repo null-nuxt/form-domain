@@ -14,6 +14,9 @@ const fieldsInSchema = computed(() => Object.keys(shape.value))
       <NuxtLink to="/wizard">
         wizard
       </NuxtLink>
+      <NuxtLink to="/fragments">
+        fragments
+      </NuxtLink>
       <NuxtLink to="/__forms">
         inspector
       </NuxtLink>

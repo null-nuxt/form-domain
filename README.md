@@ -11,7 +11,7 @@ yup 1.7+.
 
 **Why it looks like this** · [Why a setup and not a builder](#why-a-setup-and-not-a-builder) · [The names](#the-names-and-what-each-prefix-promises) · [Registration takes its target](#registration-takes-its-target)
 
-**Declaring** · [Rules](#rules) · [Group rules](#one-rule-for-a-group-of-fields) · [Locked fields](#a-field-something-else-decides) · [Validation](#validation) · [`meta`](#meta-what-the-project-carries-on-a-field) · [Composing fragments](#composing-fragments) · [Module scope and SSR](#fields-at-module-scope-leak-under-ssr)
+**Declaring** · [Rules](#rules) · [Group rules](#one-rule-for-a-group-of-fields) · [Locked fields](#a-field-something-else-decides) · [Validation](#validation) · [`meta`](#meta-what-the-project-carries-on-a-field) · [Composing fragments](#composing-fragments) · [Fragments with rules](#a-fragment-that-brings-its-own-rules) · [Module scope and SSR](#fields-at-module-scope-leak-under-ssr)
 
 **Rendering** · [`register()`](#register-builds-the-input-props) · [Extending it](#extending-register) · [Choices](#only-declared-choices-are-choices) · [Fetched lists](#a-list-that-has-to-be-fetched) · [The option's label](#the-options-label)
 
@@ -961,9 +961,83 @@ refFields(mergeFields([
 ```
 
 Keys only, and labels when you ask, because the second block rarely wants the
-first one's wording. What it does **not** carry across is the fragment's rules:
-a rule names the keys it reads and writes, and those are the unprefixed ones, so
-a fragment that ships rules still takes the names to use.
+first one's wording. What comes along with the fragment — its rules, its
+validators, its fetched lists — comes along through
+[`scopeOf`](#a-fragment-that-brings-its-own-rules), which is the next section.
+
+### A fragment that brings its own rules
+
+A fragment is rarely only fields. An address knows how to look itself up from a
+postcode, which city list belongs to which state, and what makes it valid — and
+all of that is written against the keys **it** declared. Rename them and every bit
+of it has to be rewritten for the second copy: the schemas, the derived lists, the
+key map a lookup patches through. That is the one place left where a field name
+gets typed out twice.
+
+`scopeOf` is that translation, done once:
+
+```ts
+// fragments/address.ts
+export const address = defineFields({
+  zipCode: { label: 'Postcode', value: '' },
+  street: { label: 'Street', value: '' },
+  city: { label: 'City', value: '' },
+})
+
+/** A fragment is a declaration, plus the rules that come with it. */
+export const addressRules = (fields: BuiltFields<typeof address>) => {
+  addSchemas(fields, { zipCode: string().required('Postcode is required') })
+
+  addRules(fields, {
+    zipCode: {
+      onChange: async (zipCode, { patch, busy }) => {
+        busy('street', 'city')
+        patch(await api.address(zipCode))
+      },
+    },
+    city: { canEdit: () => false },
+  })
+
+  // whatever the screen needs out of it, and nothing it doesn't
+  return { isResolved: () => fields.city.value !== '' }
+}
+```
+
+```ts
+// inside the setup
+const fields = refFields(mergeFields([
+  customer,
+  address,
+  prefixFields('company', address, { label: label => `Company ${label.toLowerCase()}` }),
+]))
+
+addressRules(scopeOf(address, fields))
+const companyAddress = addressRules(scopeOf(address, fields, 'company'))
+```
+
+The view is the form's **own fields** under the fragment's names — the same
+objects, so a rule reading `fields.zipCode.value` reads the real one and a
+validator attaches to the real one. Only two things in a rule ever say a key out
+loud, `patch({ street })` and `busy('city')`, and those are translated on the way
+through. Everything else already reads the field it was handed.
+
+The form has to have the keys: a prefix that does not line up is a compile error
+naming them, not a view full of `undefined`. A group rule takes a view too —
+`addGroupRule(fields, scopeOf(address, fields, 'company'), { canShow })` covers
+that block and not the other one.
+
+**The shape above is the recommendation**, not a requirement: a declaration, and a
+`rules(fields)` beside it that attaches what belongs to the fragment and returns
+what the screen needs. Before `scopeOf` every project invented its own answer to
+"how does a fragment ship its rules", and the answers did not look alike.
+
+Two things it is worth knowing it cannot fix. A rule attached with the singular
+`addRule(view.zipCode, …)` is not translated — the field object has no idea which
+view it was reached through — so a fragment's rules use the plural form, and a
+`patch` that lands outside the form now says so instead of writing nothing. And
+rules have to be attached **before the form is built**: `onChange` and `loadOptions`
+are watchers the engine creates when it is built, and one attached afterwards
+would never run, so that says so too.
 
 `pickFields` and `omitFields` take part of one, because a fragment is a unit of
 reuse and not always a unit of layout — the customer block is one thing to
@@ -1233,7 +1307,10 @@ a test run wants anyway, and what `resetForms()` clears.
 | `submit` naming a step that doesn't exist | **compile time** |
 | `.payload()` naming a step that doesn't exist | **compile time** |
 | a step handler reading a key its own body doesn't carry | **compile time** |
+| `scopeOf` with a prefix the form does not carry | **compile time** |
 | a rule or schema for a field the form doesn't have, where the types were bypassed | runtime warning |
+| `patch()` naming a field the form doesn't have, where the types were bypassed | runtime warning |
+| a rule with `onChange` or `loadOptions` attached after the form was built | runtime warning |
 | `setErrors` naming a field that doesn't exist | **compile time** |
 | `goTo()` naming a step that doesn't exist | **compile time** |
 | `deriveOptions` on a field that declared no options | **compile time** |
@@ -1250,6 +1327,7 @@ a test run wants anyway, and what `resetForms()` clears.
 defineFields({ name: { ... } })   // a declaration in its own file, checked there
 mergeFields([a, b])               // declaration fragments into one
 prefixFields('company', frag)     // the same fragment under its own names
+scopeOf(frag, fields, 'company')  // the form's fields under the fragment's names
 pickFields(fragment, ['a'])       // part of one, as a declaration
 omitFields(fragment, ['a'])       // everything except
 refField({ label, value })        // one field, reusable across domains

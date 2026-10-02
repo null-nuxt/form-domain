@@ -2,6 +2,9 @@ import { markRaw } from 'vue'
 import { isStandardSchema } from '../standard'
 import type { StandardSchemaV1 } from '@standard-schema/spec'
 import type { FieldObj, FieldRule, GroupRule } from './declare'
+import { isClaimed } from '../engine/claim'
+import { scopeMapOf } from './scope'
+import type { ScopeMap } from './scope'
 import type { AnyFields, FieldOption, HasOptions, OnlyKnownKeys, OptionValue, ValuesOf } from '../types'
 
 /**
@@ -40,7 +43,28 @@ export function addRule<TValue, TValues, TDeclared>(
       : { deriveOptions?: never, loadOptions?: never }),
 ): void {
   warnIfTaken('rule', target.key, target.rule !== undefined)
+  warnIfLate(target, rule as FieldRule<unknown, unknown>)
+
   target.rule = rule as FieldRule<TValue, TValues>
+}
+
+/**
+ * The parts of a rule the engine WIRES rather than asks.
+ *
+ * `canShow` and the rest are read whenever the answer is needed, so attaching
+ * them late works. `onChange` and `loadOptions` are watchers, and the engine
+ * creates them when it is built — attached afterwards they are never wired, and
+ * a lookup that simply never runs is the hardest kind of nothing to debug.
+ */
+const warnIfLate = (target: { key: string } & object, rule: FieldRule<unknown, unknown>) => {
+  if (!rule.onChange && !rule.loadOptions) return
+  if (!isClaimed(target)) return
+
+  console.warn(
+    `[@null-nuxt/form-domain] the rule for "${target.key}" was attached after the form was built, `
+    + `so its \`${rule.onChange ? 'onChange' : 'loadOptions'}\` will never run. Attach rules while the `
+    + `fields are still a declaration — inside the setup, before \`toForm()\`.`,
+  )
 }
 
 /**
@@ -86,17 +110,49 @@ const warnIfMissing = (what: 'rule' | 'schema', key: string, present: boolean) =
   )
 }
 
+/**
+ * The only part of a rule that says a key out loud.
+ *
+ * Everything else a rule does — `canShow`, `deriveOptions`, `loadOptions` — reads
+ * the field objects it was handed, and a scoped view hands over the real ones. So
+ * a fragment's rules work on a renamed form as written, except where they name a
+ * key: `patch({ street })` and `busy('city')`. Translated here, where the view's
+ * key space is still known; the engine only ever sees the form's own names.
+ */
+const throughScope = (rule: FieldRule<unknown, unknown>, scope: ScopeMap): FieldRule<unknown, unknown> => {
+  const { onChange } = rule
+  if (!onChange) return rule
+
+  const real = (key: string) => scope[key] ?? key
+
+  return {
+    ...rule,
+    onChange: (value, ctx) => onChange(value, {
+      patch: patch => ctx.patch(
+        Object.fromEntries(Object.entries(patch).map(([key, next]) => [real(key), next])),
+      ),
+      // `FieldRule<unknown, unknown>` leaves the key type `never`; the names are the view's
+      busy: (...keys) => ctx.busy(...(keys.map(real) as never[])),
+    }),
+  }
+}
+
 export function addRules<F extends AnyFields, R>(
   fields: F,
   rules: R
     & { [K in keyof F]?: RuleFor<F, K> }
     & OnlyKnownKeys<R, keyof F & string>,
 ): void {
+  const scope = scopeMapOf(fields)
+
   for (const [key, rule] of Object.entries(rules as Record<string, unknown>)) {
     const target = fields[key]
     warnIfMissing('rule', key, target !== undefined)
 
-    if (target && rule) addRule(target, rule as FieldRule<unknown, unknown>)
+    if (!target || !rule) continue
+
+    const attached = rule as FieldRule<unknown, unknown>
+    addRule(target, scope ? throughScope(attached, scope) : attached)
   }
 }
 
@@ -168,7 +224,15 @@ export function addGroupRule(
   target: ReadonlyArray<string> | object,
   rule: GroupRule,
 ): void {
-  const keys = Array.isArray(target) ? target : Object.keys(target)
+  /**
+   * A scoped view is a fragment of the form's own fields under the fragment's
+   * names, so its keys are translated the way a rule's are — which is what lets
+   * `addGroupRule(fields, scopeOf(address, fields, 'company'), …)` cover the
+   * company block and not the other one.
+   */
+  const scope = Array.isArray(target) ? undefined : scopeMapOf(target)
+  const named = Array.isArray(target) ? target : Object.keys(target)
+  const keys = scope ? named.map(key => scope[key] ?? key) : named
 
   for (const key of keys) {
     const field = fields[key]

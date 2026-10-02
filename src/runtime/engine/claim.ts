@@ -35,6 +35,9 @@ const claim = (target: object): boolean => {
   return true
 }
 
+/** Whether something is already driving a form — read by `addRule`, which cares when. */
+export const isClaimed = (target: object): boolean => (target as Claimable)[CLAIMED] === true
+
 const release = (target: object): void => {
   // redefined rather than deleted: the lint rule against dynamic delete is
   // right in general, and writing `undefined` reads the same to the check

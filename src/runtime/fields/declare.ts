@@ -499,9 +499,10 @@ export type Prefixed<P extends string, T> = {
  * block ("Street" and "Company street"), so `label` takes a function when they
  * differ and is left alone when they don't.
  *
- * What it does NOT carry across is the fragment's rules. A rule names the keys
- * it reads and writes, and those keys are the unprefixed ones — for now a
- * fragment that ships rules takes the names to use, the way it always did.
+ * The rules come along separately, through `scopeOf`: a rule names the keys it
+ * reads and writes, and those are the names the fragment declared, so what it
+ * needs is the form's own fields under those names rather than a copy of itself
+ * rewritten for the prefix.
  */
 export const prefixFields = <const P extends string, T extends FieldsInput>(
   prefix: P,

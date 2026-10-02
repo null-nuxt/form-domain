@@ -8,6 +8,22 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`scopeOf(fragment, fields, prefix?)`**, so a fragment can bring its rules to a
+  form that renamed its keys. `prefixFields` put the same block in a form twice
+  and carried the declaration across; everything that came WITH the fragment — its
+  schemas, its derived lists, the key map a lookup patches through — had to be
+  written again for the second copy, which was the last place a field name was
+  typed out twice.
+
+  The view is the form's own fields under the fragment's names, so a rule reading
+  `fields.zipCode.value` reads the real field and a validator attaches to the real
+  one. Only `patch()` and `busy()` ever say a key out loud, and those are
+  translated on the way through. A group rule takes a view as its target too.
+
+  With that, a fragment has a shape worth recommending, which it did not before: a
+  declaration, and a `rules(fields)` beside it that attaches what belongs to the
+  fragment and returns what the screen needs. The README has it.
+
 - **`ctx.busy()` in an `onChange`, and `field.busy` on the field.** A fetched list
   said it was in flight and `register()` could carry that; a rule that went and
   asked something could not, so a postcode lookup meant returning a ref from the
@@ -25,6 +41,17 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   that is about a list, and the inspector shows the field as busy either way.
 
 ### Fixed
+
+- **A rule with `onChange` or `loadOptions` attached after the form was built says
+  so.** Those two are watchers the engine creates when it is built, so one
+  attached afterwards never ran — and a lookup that simply never happens is the
+  hardest kind of nothing to find. It is easy to reach now that a fragment's rules
+  arrive as a function call, which is how this was noticed.
+
+- **`set()` says so when it is given a key the form does not have**, instead of
+  skipping it in silence. The types answer this wherever the keys are known; where
+  they are not, the likeliest reason is a fragment's rule patching its own names on
+  a form that renamed them — which is what `scopeOf` is for.
 
 - **An `onChange` that throws is reported, naming the field**, instead of leaving
   an unhandled rejection that names neither it nor the rule. Nobody awaits a
